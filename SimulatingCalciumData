@@ -7,3 +7,4 @@ be defining pixels within simple shapes (circles or ovals) to be a
 single "cell" in which their fluorescence changes according to the
 simulated traces. White noise can be added in each frame of the movie
 in order to test the robustness of the segmentation algorithms.
+We can write a Matlab function to simulate these simplified data.
