@@ -12,7 +12,7 @@ clear all;
 %% simulation parameters
 N = 2; % number of ROI to simulate
 snrImg = inf; % signal-to-noise ratio, inf is no noise (TO DO)
-nscale = .3; % for now to add noise that is a fraction of the maximum DFF
+nscale = 1; % for now to add noise that is a fraction of the maximum DFF
 
 snrDFF = 2; % signal to noise ratio of the DFF singals
 
