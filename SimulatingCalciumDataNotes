@@ -1,0 +1,16 @@
+Extra notes on the DFF signal simulation: (based on the methods sections of the corresponding paper)
+  1. Spikes are modeled as a Poisson point process with some firing rate.
+  2. In the linear model, the spike train is transformed into a fluorescence signal by convolving
+     with the single-AP evoked calcium transient. This impulse response is modeled with a rapidly rising
+     then exponentially decaying function parameterized with both an onset and decay time constant.
+     This linear model is sufficient to simulate low firing rates since it assumes that the calcium
+     concentration is well below the dissociation constant (?) in order to linearize the transformation
+     between calcium and DFF.
+  3. To better simulate higher firing rates, the model adds some dynamics regarding the saturation of 
+     the calcium indicator in the cell characterized by exogenous and endogenous binding ratios (though
+     these are not public parameters in the simulation code). These parameters are used to model a different
+     calcium time course based on spike times. Smoothing happens.Then, the nonlinear version of the 
+     transformation from calcium to DFF is used. (??? This part confuses me the most.)
+  4. Gaussian white noise is added to the time courses.
+  5. Time courses are downsampled. (I think this is done so that the spike timing is very precise, but not
+     the calcium imaging data.)
