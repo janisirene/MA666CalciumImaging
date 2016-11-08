@@ -10,19 +10,19 @@
 clear all;
 
 %% simulation parameters
-N = 10; % number of ROI to simulate
+N = 2; % number of ROI to simulate
 snrImg = inf; % signal-to-noise ratio, inf is no noise (TO DO)
 nscale = .3; % for now to add noise that is a fraction of the maximum DFF
 
 snrDFF = 2; % signal to noise ratio of the DFF singals
 
-svMovie = 'simulateCalcImg.avi'; % if empty doesn't save
+svMovie = 'simulateCalcImg_small.avi'; % if empty doersn't save
 % svMovie = '';
 
 %% basic parameters that should be tuned to simulate realistic data
 % don't go to big on these dimensions yet - memory issues, but they can be
 % resolved easily
-sz = 200; % spatial frame will be 512 x 512
+sz = 50; % spatial frame will be 512 x 512
 dur = 5; % 100 seconds, but how long is a trace usually?
 Fs = 30; % 30 Hz recording
 
@@ -91,6 +91,8 @@ axis image;
 caxis([0, cmax]);
 colormap('parula');
 
+full = nan(sz, sz, nT);
+
 mov(nT) = struct('cdata', [], 'colormap', []);
 for t = 1:nT
     temp = zeros(sz, sz);
@@ -99,11 +101,14 @@ for t = 1:nT
     end
     % add noise for the video, but this should be done correctly by
     % actually using the input SNR
-    temp = temp + rand(sz) * cmax * nsscale; % hack for noise
+    temp = temp + rand(sz) * cmax * nscale; % hack for noise
     
+    full(:, :, t) = temp;
     set(himg, 'CData', temp);
-    mov(t) = getframe(gcf);
+    mov(t) = getframe(gca);
 end
+
+save('calcImg_small.mat', 'full', 'ROI');
 
 %% write the movie to a file
 if ~isempty(svMovie)
