@@ -40,7 +40,7 @@ function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuro
 %  4) test on real data
 
 if nargin < 2
-    estNeuronSize = 3;
+    estNeuronSize = 5;
 end
 estNeuronSize = round(estNeuronSize);
 
