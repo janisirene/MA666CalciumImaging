@@ -82,7 +82,8 @@ figure();imagesc(autoCorrImg);caxis([0 1]);colormap('jet');colorbar;
 title('Maximum Autocorrelation Image');
 
 
-% for thresholding ... perform statistical test on autocorrelation coefficients
+% for thresholding ... perform statistical test on autocorrelation
+%  coefficients
 numComparisons = width*height;
 alpha = 1-0.05/numComparisons;
 
@@ -95,10 +96,10 @@ figure();histogram(autoCorrImg(:));hold on;
 plot(ones(100,1).*threshold,linspace(0,max(N),100),'r','LineWidth',2);
 xlabel('Maximum Autocorrelation Coefficient');ylabel('Count');
 title('Histogram of Maximum Autocorrelation Coefficients');
-legend('Histogram','Bonferroni-corrected Threshold');
+legend('Histogram','Bonferroni-Corrected Threshold');
 
 se = strel('disk',estNeuronSize);
-finalBinaryImage = imclose(binaryAutoCorr,se);
+finalBinaryImage = imopen(imclose(binaryAutoCorr,se),se);
 
 figure();imagesc(finalBinaryImage);colormap('bone');
 title('Binary Mask for ROI Detection');
