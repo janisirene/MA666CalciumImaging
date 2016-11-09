@@ -54,7 +54,6 @@ while hasFrame(vidObj)
     fullVideo(:,:,count) = mean(double(temp),3);
     count = count+1;
 end
-
 fullVideo = fullVideo(60:470,230:640,:);
 
 % denoise with wiener filter
@@ -67,7 +66,7 @@ for ii=1:numFrames
     fltVideo(:,:,ii) = wiener2(temp,[5,5]);
 end
 
-% implay(uint8(fltVideo));
+%implay(uint8(fullVideo));
 
 
 % obtain autocorrelation image
@@ -75,7 +74,9 @@ autoCorrImg = zeros(width,height);
 for ii=1:width
     for jj=1:height
         [acf,~] = autocorr(squeeze(fltVideo(ii,jj,:)));
-        autoCorrImg(ii,jj) = max(abs(acf(acf<1)));
+        if isnan(acf) ~= 1
+            autoCorrImg(ii,jj) = max(abs(acf(acf<1)));
+        end
     end
 end
 
@@ -100,7 +101,11 @@ title('Histogram of Maximum Autocorrelation Coefficients');
 legend('Histogram','Bonferroni-Corrected Threshold');
 
 se = strel('disk',estNeuronSize);
-finalBinaryImage = imopen(imclose(binaryAutoCorr,se),se);
+figure();imagesc(binaryAutoCorr);
+figure();imagesc(imclose(binaryAutoCorr,se));
+
+se2 = strel('disk',round(estNeuronSize/2));
+finalBinaryImage = imopen(imclose(binaryAutoCorr,se),se2);
 
 figure();imagesc(finalBinaryImage);colormap('bone');
 title('Binary Mask for ROI Detection');
@@ -144,3 +149,4 @@ xlabel('Coefficient Magnitude');ylabel('Count');
 Components = bwconncomp(finalBinaryImage);
 Centroids = regionprops(Components,'Centroid');
 end
+
