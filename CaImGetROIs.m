@@ -25,7 +25,7 @@ function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuro
 % 
 %Created: 2016/11/08
 % Byron Price
-%Updated: 2016/11/08
+%Updated: 2016/11/09
 %  By: Byron Price
 
 % Future steps:
@@ -42,6 +42,7 @@ function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuro
 if nargin < 2
     estNeuronSize = 3;
 end
+estNeuronSize = round(estNeuronSize);
 
 vidObj = VideoReader(filename);
 numFrames = vidObj.FrameRate*vidObj.Duration;
@@ -69,7 +70,7 @@ end
 % implay(uint8(fltVideo));
 
 
-% look for ROIs
+% obtain autocorrelation image
 autoCorrImg = zeros(width,height);
 for ii=1:width
     for jj=1:height
@@ -104,7 +105,42 @@ finalBinaryImage = imopen(imclose(binaryAutoCorr,se),se);
 figure();imagesc(finalBinaryImage);colormap('bone');
 title('Binary Mask for ROI Detection');
 
+% remove noisy background
+maskedVideo = zeros(size(fltVideo));
+for ii=1:numFrames 
+    newVideo(:,:,ii) = fltVideo(:,:,ii).*finalBinaryImage;
+end
+
+% look for components to either merge or separate with cross-correlation
+summedCrossCorr = zeros(width,height);
+divisor = zeros(width,height);
+maxlag = 5;
+for ii=1:width
+    for jj=1:height
+        if squeeze(newVideo(ii,jj,:)) ~= zeros(numFrames,1)
+            for kk=-estNeuronSize:estNeuronSize
+                for ll=-estNeuronSize:estNeuronSize
+                    if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height && kk ~= 0 && ll ~= 0
+                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(newVideo(ii,jj,:)),squeeze(newVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
+                        divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
+                    end
+                end
+            end
+        end
+    end
+end
+summedCrossCorr = summedCrossCorr./divisor;
+figure();imagesc(summedCrossCorr);title('Summed Cross-Correlation Image');
+
+% at this point, we could try either a non-parametric statistical test or
+%  attempt to figure out the distribution of these coefficients and then 
+%  eliminate regions in the image with low summed cross-correlation
+%  coefficients (indicating that they lie at the border between two cells)
+summedCrossCorr = summedCrossCorr(:);
+figure();histogram(summedCrossCorr(summedCrossCorr~=0));
+title('Histogram of Summed Cross-Correlation Coefficients');
+xlabel('Coefficient Magnitude');ylabel('Count');
+
 Components = bwconncomp(finalBinaryImage);
 Centroids = regionprops(Components,'Centroid');
-
 end
