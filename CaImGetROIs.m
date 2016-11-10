@@ -54,7 +54,6 @@ while hasFrame(vidObj)
     fullVideo(:,:,count) = mean(double(temp),3);
     count = count+1;
 end
-
 fullVideo = fullVideo(60:470,230:640,:);
 
 % denoise with wiener filter
@@ -67,7 +66,7 @@ for ii=1:numFrames
     fltVideo(:,:,ii) = wiener2(temp,[5,5]);
 end
 
-% implay(uint8(fltVideo));
+%implay(uint8(fullVideo));
 
 
 % obtain autocorrelation image
@@ -75,7 +74,9 @@ autoCorrImg = zeros(width,height);
 for ii=1:width
     for jj=1:height
         [acf,~] = autocorr(squeeze(fltVideo(ii,jj,:)));
-        autoCorrImg(ii,jj) = max(abs(acf(acf<1)));
+        if isnan(acf) ~= 1
+            autoCorrImg(ii,jj) = max(abs(acf(acf<1)));
+        end
     end
 end
 
@@ -100,7 +101,11 @@ title('Histogram of Maximum Autocorrelation Coefficients');
 legend('Histogram','Bonferroni-Corrected Threshold');
 
 se = strel('disk',estNeuronSize);
-finalBinaryImage = imopen(imclose(binaryAutoCorr,se),se);
+figure();imagesc(binaryAutoCorr);
+figure();imagesc(imclose(binaryAutoCorr,se));
+
+se2 = strel('disk',round(estNeuronSize/2));
+finalBinaryImage = imopen(imclose(binaryAutoCorr,se),se2);
 
 figure();imagesc(finalBinaryImage);colormap('bone');
 title('Binary Mask for ROI Detection');
@@ -108,7 +113,7 @@ title('Binary Mask for ROI Detection');
 % remove noisy background
 maskedVideo = zeros(size(fltVideo));
 for ii=1:numFrames 
-    newVideo(:,:,ii) = fltVideo(:,:,ii).*finalBinaryImage;
+    maskedVideo(:,:,ii) = fltVideo(:,:,ii).*finalBinaryImage;
 end
 
 % look for components to either merge or separate with cross-correlation
@@ -117,11 +122,11 @@ divisor = zeros(width,height);
 maxlag = 5;
 for ii=1:width
     for jj=1:height
-        if squeeze(newVideo(ii,jj,:)) ~= zeros(numFrames,1)
+        if squeeze(maskedVideo(ii,jj,:)) ~= zeros(numFrames,1)
             for kk=-estNeuronSize:estNeuronSize
                 for ll=-estNeuronSize:estNeuronSize
                     if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height && kk ~= 0 && ll ~= 0
-                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(newVideo(ii,jj,:)),squeeze(newVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
+                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(maskedVideo(ii,jj,:)),squeeze(maskedVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
                         divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
                     end
                 end
