@@ -148,6 +148,7 @@ for t = 1:nT
     % Note: if you want a bigger simulation that requires saving each time
     % step individually this is the place to do it
 end
+save(svMovie,'full');
 
 %% write the movie to a file
 if ~isempty(svMovie)
