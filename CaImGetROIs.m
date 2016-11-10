@@ -25,7 +25,7 @@ function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuro
 % 
 %Created: 2016/11/08
 % Byron Price
-%Updated: 2016/11/11
+%Updated: 2016/11/10
 %  By: Byron Price
 
 % Future steps:
@@ -46,7 +46,6 @@ elseif nargin < 3
     maxNeurons = 100;
 end
 
-estNeuronSize = round(estNeuronSize);
 estNeuronArea = pi*estNeuronSize*estNeuronSize;
 
 if ischar(filename) % data input is .avi
@@ -116,8 +115,9 @@ title('Histogram of Maximum Autocorrelation Coefficients');
 legend('Histogram','Bonferroni-Corrected Threshold');
 
 % morphological opening and closing?
-se = strel('disk',estNeuronSize/2);
-finalBinaryImage = imopen(imclose(binaryAutoCorr,se),se);
+se = strel('disk',round(estNeuronSize/4));
+se2 = strel('disk',round(estNeuronSize));
+finalBinaryImage = imclose(imopen(binaryAutoCorr,se),se2);
 
 figure();imagesc(finalBinaryImage);colormap('bone');
 title('Binary Mask for ROI Detection');
