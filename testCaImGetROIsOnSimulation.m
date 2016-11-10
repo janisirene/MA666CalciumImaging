@@ -1,7 +1,9 @@
 % script to test CaImGetROIs on simulated data
 % TO DO:
 %   1. systematically test a variety of snr 
-%   2. add metrics to compare truth and output
+%   2. add metrics to compare truth and output (ROC curve requires changing
+%   threshold in autosegmentation algorithm, perhaps just hit and FA rates
+%   for now?)
 
 %% simulate data
 sz = 100; % sz x sz image
