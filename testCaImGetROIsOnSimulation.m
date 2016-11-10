@@ -1,9 +1,11 @@
 % script to test CaImGetROIs on simulated data
 % TO DO:
-%   1. systematically test a variety of snr 
-%   2. add metrics to compare truth and output (ROC curve requires changing
-%   threshold in autosegmentation algorithm, perhaps just hit and FA rates
-%   for now?)
+%   1. systematically test more snr 
+%   2. vary threshold in segmentation algorithm to generate full ROC curve
+%   3. add metrics to compare ROI footprint shapes
+% author: Janis Intoy
+% date: November 9, 2016
+% modified: Novemeber 10, 2016 - added hit and false alarm rate calcs
 
 %% simulate data
 sz = 100; % sz x sz image
@@ -36,4 +38,21 @@ ylim([1, sz]);
 axis image;
 title('detected ROI overlaid on true');
 
-%% 
+%% was the footprint detected (above threshold?)
+X = false(nROI, Components.NumObjects);
+for i = 1:nROI
+    ind = sub2ind([sz, sz], ROI(i).center(2), ROI(i).center(1));
+    for j = 1:Components.NumObjects
+        X(i, j) = any(Components.PixelIdxList{j} == ind);
+    end
+end
+
+% hit and false alarm rate
+hit = sum(sum(X, 2) > 0) / nROI;
+fa = sum(sum(X, 1) == 0) / Components.NumObjects;
+
+% average number of cells contained in detected ROI
+avgNPerROI = mean(sum(X, 1)); 
+
+fprintf('hit rate: %1.3f\t\tfalse alarm rate: %1.3f\n', hit, fa);
+fprintf('average number of cells contained in ROI: %1.3f\n', avgNPerROI);
