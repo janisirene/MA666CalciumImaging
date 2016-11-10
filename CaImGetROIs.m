@@ -108,12 +108,8 @@ title('Histogram of Maximum Autocorrelation Coefficients');
 legend('Histogram','Bonferroni-Corrected Threshold');
 
 % morphological opening and closing?
-se = strel('disk',estNeuronSize);
-figure();imagesc(binaryAutoCorr);
-figure();imagesc(imclose(binaryAutoCorr,se));
-
-se2 = strel('disk',round(estNeuronSize/2));
-finalBinaryImage = imopen(imclose(binaryAutoCorr,se),se2);
+se = strel('disk',estNeuronSize/2);
+finalBinaryImage = imopen(imclose(binaryAutoCorr,se),se);
 
 figure();imagesc(finalBinaryImage);colormap('bone');
 title('Binary Mask for ROI Detection');
