@@ -147,6 +147,8 @@ end
 summedCrossCorr = summedCrossCorr./divisor;
 figure();imagesc(summedCrossCorr);title('Summed Cross-Correlation Image');
 
+h = fspecial('laplacian');
+figure();imagesc(filter2(h,summedCrossCorr,'same'));
 % at this point, we could try either a non-parametric statistical test or
 %  attempt to figure out the distribution of these coefficients and then 
 %  eliminate regions in the image with low summed cross-correlation

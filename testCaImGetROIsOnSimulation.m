@@ -37,6 +37,7 @@ xlim([1, sz]);
 ylim([1, sz]);
 axis image;
 title('detected ROI overlaid on true');
+set(gca, 'YDir', 'reverse');
 
 %% was the footprint detected (above threshold?)
 X = false(nROI, Components.NumObjects);

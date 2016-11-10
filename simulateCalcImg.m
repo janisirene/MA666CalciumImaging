@@ -106,6 +106,7 @@ end
 axis image;
 set(gca, 'XLim', [1, sz], 'YLim', [1, sz]);
 title('simulated ROI');
+set(gca, 'YDir', 'reverse');
 
 %% what's the maximum fluorescence?
 cmax = 0;
@@ -129,6 +130,7 @@ for i = 1:nROI
 end
 xlim([1, sz]);
 ylim([1, sz]);
+set(gca, 'YDir', 'reverse');
 
 full = nan(sz, sz, nT);
 
