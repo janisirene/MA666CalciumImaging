@@ -1,4 +1,4 @@
-function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuronSize)
+function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuronSize,maxNeurons)
 %CaImGetROIs.m
 %   Take as input a .avi file and get out the individual ROIs that a simple
 %    algorithm has identified. Use with a .avi video that Janis created, or
@@ -25,7 +25,7 @@ function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuro
 % 
 %Created: 2016/11/08
 % Byron Price
-%Updated: 2016/11/09
+%Updated: 2016/11/11
 %  By: Byron Price
 
 % Future steps:
@@ -41,8 +41,13 @@ function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuro
 
 if nargin < 2
     estNeuronSize = 5;
+    maxNeurons = 100;
+elseif nargin < 3
+    maxNeurons = 100;
 end
+
 estNeuronSize = round(estNeuronSize);
+estNeuronArea = pi*estNeuronSize*estNeuronSize;
 
 if ischar(filename) % data input is .avi
     vidObj = VideoReader(filename);
@@ -94,10 +99,13 @@ title('Maximum Autocorrelation Image');
 % for thresholding ... perform statistical test on autocorrelation
 %  coefficients
 numComparisons = width*height;
-alpha = 1-0.05/numComparisons;
+% alpha = 1-0.05/numComparisons;
+% 
+% q = norminv(alpha,0,1);
+% threshold = q/sqrt(numFrames); 
 
-q = norminv(alpha,0,1);
-threshold = q/sqrt(numFrames);
+totalNeuronArea = maxNeurons*estNeuronArea;
+threshold = quantile(autoCorrImg(:),1-totalNeuronArea/numComparisons);
 binaryAutoCorr = autoCorrImg > threshold;
 
 figure();histogram(autoCorrImg(:));hold on;
@@ -154,3 +162,4 @@ xlabel('Coefficient Magnitude');ylabel('Count');
 Components = bwconncomp(finalBinaryImage);
 Centroids = regionprops(Components,'Centroid');
 end
+
