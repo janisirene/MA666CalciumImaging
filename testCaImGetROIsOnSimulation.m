@@ -10,14 +10,14 @@
 %% simulate data
 sz = 100; % sz x sz image
 dur = 10; % seconds sampled at 30Hz
-nROI = 20; % number of cells
-snr = 3; % signal to noise ratio
+nROI = 25; % number of cells
+snr = 2; % signal to noise ratio
 svMovie = ''; % filename to save movie as .avi
 
 [ROI, full] = simulateCalcImg(sz, dur, nROI, snr, svMovie);
 
 %% automatic segmenation algorithm
-[finalBinaryImage,Components,Centroids] = CaImGetROIs(full);
+[finalBinaryImage,Components,Centroids] = CaImGetROIs(full, 5, nROI);
 
 %% plot: compare Components and ROI
 truthMap = false(sz, sz);
