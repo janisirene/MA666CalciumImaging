@@ -79,6 +79,8 @@ autoCorrImg = zeros(width,height);
 for ii=1:width
     for jj=1:height
         [acf,~] = autocorr(squeeze(fltVideo(ii,jj,:)));
+        % pixels with a temporal structure will have larger acf at nonzero
+        % lags
         if isnan(acf) ~= 1
             autoCorrImg(ii,jj) = max(abs(acf(acf<1)));
         end
@@ -105,6 +107,7 @@ xlabel('Maximum Autocorrelation Coefficient');ylabel('Count');
 title('Histogram of Maximum Autocorrelation Coefficients');
 legend('Histogram','Bonferroni-Corrected Threshold');
 
+% morphological opening and closing?
 se = strel('disk',estNeuronSize);
 figure();imagesc(binaryAutoCorr);
 figure();imagesc(imclose(binaryAutoCorr,se));
@@ -151,6 +154,7 @@ figure();histogram(summedCrossCorr(summedCrossCorr~=0));
 title('Histogram of Summed Cross-Correlation Coefficients');
 xlabel('Coefficient Magnitude');ylabel('Count');
 
+% bwconncomp finds groups in the binary image
 Components = bwconncomp(finalBinaryImage);
 Centroids = regionprops(Components,'Centroid');
 end

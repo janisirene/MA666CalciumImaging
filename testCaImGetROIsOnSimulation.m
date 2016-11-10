@@ -50,9 +50,11 @@ end
 % hit and false alarm rate
 hit = sum(sum(X, 2) > 0) / nROI;
 fa = sum(sum(X, 1) == 0) / Components.NumObjects;
+dprime = norminv(hit, 0, 1) - norminv(fa, 0, 1);
 
 % average number of cells contained in detected ROI
 avgNPerROI = mean(sum(X, 1)); 
 
 fprintf('hit rate: %1.3f\t\tfalse alarm rate: %1.3f\n', hit, fa);
+fprintf('d'' = %1.3f\n', dprime);
 fprintf('average number of cells contained in ROI: %1.3f\n', avgNPerROI);
