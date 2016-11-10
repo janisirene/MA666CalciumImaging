@@ -44,17 +44,22 @@ if nargin < 2
 end
 estNeuronSize = round(estNeuronSize);
 
-vidObj = VideoReader(filename);
-numFrames = vidObj.FrameRate*vidObj.Duration;
-fullVideo = zeros(vidObj.Height,vidObj.Width,numFrames);
-
-count = 1;
-while hasFrame(vidObj)
-    temp = readFrame(vidObj);
-    fullVideo(:,:,count) = mean(double(temp),3);
-    count = count+1;
+if ischar(filename) % data input is .avi
+    vidObj = VideoReader(filename);
+    numFrames = vidObj.FrameRate*vidObj.Duration;
+    fullVideo = zeros(vidObj.Height,vidObj.Width,numFrames);
+    
+    count = 1;
+    while hasFrame(vidObj)
+        temp = readFrame(vidObj);
+        fullVideo(:,:,count) = mean(double(temp),3);
+        count = count+1;
+    end
+    fullVideo = fullVideo(60:470,230:640,:);
+else % data input is already 3d array
+    fullVideo = filename;
+    numFrames = size(fullVideo, 3);
 end
-fullVideo = fullVideo(60:470,230:640,:);
 
 % denoise with wiener filter
 width = size(fullVideo,1);

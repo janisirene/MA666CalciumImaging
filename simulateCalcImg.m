@@ -8,7 +8,7 @@ function [ROI, full] = simulateCalcImg(sz, dur, nROI, snr, svMovie)
 % -if 2 ROI overlap, the overlapping indices will contain the DFF signal of
 %   one cell, not the summation of both
 %
-% [ROI, full] = simulateCalcImg(sz, nCells, snr, svMovie)
+% [ROI, full] = simulateCalcImg(sz, dur, nROI, snr, svMovie)
 % INPUTS:
 %   sz      - spatial dimension of signal (sz x sz) [default 50]
 %   dur     - duration in seconds of signal (sampled at 30Hz) [default 5]
@@ -115,7 +115,7 @@ end
 sdnoise = cmax / snr; % get the standard deviation of the noise to add
 
 %% simulate movie
-figure(100); clf;
+figure('Visible', 'off'); clf; % make this visible to watch as movie
 ax1 = axes('Position', [0.1 0.1 .8 .8]); hold on;
 himg = imagesc(zeros(sz, sz));
 axis image;
