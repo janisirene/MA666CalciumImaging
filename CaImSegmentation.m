@@ -82,10 +82,6 @@ end
 
 addpath(genpath('utilities'));
              
-nam = VideoFileName;          % insert path to tiff stack here
-sframe=1;						% user input: first frame to read (optional, default 1)
-
-Y = readTifStack(nam,sframe);
 Y = Y - min(Y(:)); 
 if ~isa(Y,'double');    Y = double(Y);  end         % convert to single
 
