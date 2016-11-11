@@ -11,7 +11,7 @@
 sz = 100; % sz x sz image
 dur = 10; % seconds sampled at 30Hz
 nROI = 25; % number of cells
-snr = 2; % signal to noise ratio
+snr = 10; % signal to noise ratio
 svMovie = ''; % filename to save movie as .avi
 
 [ROI, full] = simulateCalcImg(sz, dur, nROI, snr, svMovie);

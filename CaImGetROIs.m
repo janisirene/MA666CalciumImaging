@@ -49,17 +49,24 @@ end
 estNeuronArea = pi*estNeuronSize*estNeuronSize;
 
 if ischar(filename) % data input is .avi
-    vidObj = VideoReader(filename);
-    numFrames = vidObj.FrameRate*vidObj.Duration;
-    fullVideo = zeros(vidObj.Height,vidObj.Width,numFrames);
-    
-    count = 1;
-    while hasFrame(vidObj)
-        temp = readFrame(vidObj);
-        fullVideo(:,:,count) = mean(double(temp),3);
-        count = count+1;
+    [~, ~, ext] = fileparts(filename);
+    switch ext
+        case '.avi'
+            vidObj = VideoReader(filename);
+            numFrames = vidObj.FrameRate*vidObj.Duration;
+            fullVideo = zeros(vidObj.Height,vidObj.Width,numFrames);
+            
+            count = 1;
+            while hasFrame(vidObj)
+                temp = readFrame(vidObj);
+                fullVideo(:,:,count) = mean(double(temp),3);
+                count = count+1;
+            end
+            fullVideo = fullVideo(60:470,230:640,:);
+        case '.tif'
+            fullVideo = readTifStack(filename);
+            numFrames = size(fullVideo, 3);
     end
-    fullVideo = fullVideo(60:470,230:640,:);
 else % data input is already 3d array
     fullVideo = filename;
     numFrames = size(fullVideo, 3);
@@ -137,7 +144,7 @@ for ii=1:width
             for kk=-2:2
                 for ll=-2:2
                     if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height %&& kk ~= 0 && ll ~= 0
-                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
+                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(maskedVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
                         divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
                     end
                 end
