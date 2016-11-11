@@ -98,11 +98,12 @@ merge_thr = 0.8;                       % merging threshold
 
 options = CNMFSetParms(...                      
     'd1',d1,'d2',d2,...                         % dimensions of datasets
-    'search_method','dilate','dist',3,...       % search locations when updating spatial components
+    'search_method','dilate','dist',100,...       % search locations when updating spatial components
     'deconv_method','constrained_foopsi',...    % activity deconvolution method
     'temporal_iter',2,...                       % number of block-coordinate descent steps 
     'fudge_factor',0.98,...                     % bias correction for AR coefficients
     'merge_thr',merge_thr,...                    % merging threshold
+    'maxthr',0.05,...                           % threshold of max value below which values are discarded (default: 0.1)
     'gSig',tau...
     );
 % Data pre-processing
