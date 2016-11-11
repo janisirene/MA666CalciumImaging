@@ -14,7 +14,7 @@ function [ROI, full] = simulateCalcImg(sz, dur, nROI, snr, svMovie)
 %   dur     - duration in seconds of signal (sampled at 30Hz) [default 5]
 %   nROI  - number of ROI to simulate [default 3]
 %   snr     - signal to noise ratio of images [default 3]
-%   svMovie - destination file to save .avi (if empty don't save) [default
+%   svMovie - destination file to save .tif (if empty don't save) [default
 %             '']
 % OUTPUTS:
 %   ROI     - structure with parameters for each ROI
@@ -28,7 +28,7 @@ function [ROI, full] = simulateCalcImg(sz, dur, nROI, snr, svMovie)
 %   just download the code and add it to your path
 % author: Janis Intoy
 % date: November 3, 2016
-% modified: November 9, 2016 (convert to function, clean up)
+% modified: November 10, 2016 (write tif instead of avi, no noise in DFF)
 
 addpath(genpath('CalciumSim-master'));
 
@@ -50,7 +50,7 @@ if ~exist('svMovie', 'var')
 end
 
 %% simulation parameters
-snrDFF = 2; % signal to noise ratio of the DFF singals
+snrDFF = inf; % signal to noise ratio of the DFF singals
 
 %% basic parameters that should be tuned to simulate realistic data
 Fs = 30; % 30 Hz recording
@@ -62,8 +62,8 @@ mnROI = 2.55;
 sdROI = 5;
 
 %% DFF model parameters
-spikeRateMax = 20;
-spikeRateMin = 5; % random spike rate in this range
+spikeRateMax = 3;
+spikeRateMin = .5; % random spike rate in this range
 
 nT = Fs * dur; % number of time samples
 
@@ -116,7 +116,7 @@ end
 sdnoise = cmax / snr; % get the standard deviation of the noise to add
 
 %% simulate movie
-figure('Visible', 'off'); clf; % make this visible to watch as movie
+figure('Visible', 'on'); clf; % make this visible to watch as movie
 ax1 = axes('Position', [0.1 0.1 .8 .8]); hold on;
 himg = imagesc(zeros(sz, sz));
 axis image;
@@ -134,7 +134,6 @@ set(gca, 'YDir', 'reverse');
 
 full = nan(sz, sz, nT);
 
-mov(nT) = struct('cdata', [], 'colormap', []);
 for t = 1:nT
     temp = zeros(sz, sz);
     for i = 1:nROI
@@ -145,19 +144,10 @@ for t = 1:nT
     
     full(:, :, t) = temp;
     set(himg, 'CData', temp);
-    mov(t) = getframe(gca);
     
     % Note: if you want a bigger simulation that requires saving each time
     % step individually this is the place to do it
-end
-save(svMovie,'full');
-
-%% write the movie to a file
-if ~isempty(svMovie)
-    v = VideoWriter(svMovie);
-    open(v);
-    for i = 1:nT
-        writeVideo(v, mov(i));
+    if ~isempty(svMovie)
+        imwrite(temp, svMovie,'tif','WriteMode','append');
     end
-    close(v);
 end
