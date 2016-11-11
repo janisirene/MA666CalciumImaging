@@ -65,7 +65,7 @@ function [SpatMap,CaSignal,Spikes,width,height] = CaImSegmentation(VideoFileName
 if nargin == 0 
     VideoFileName = which('demoMovie.tif');
     maxNeurons = 30;
-    estNeuronSize = 8;
+    estNeuronSize = 4;
 end
 if ischar(VideoFileName)
     [~,~,ext] = fileparts(VideoFileName);
@@ -103,7 +103,8 @@ options = CNMFSetParms(...
     'temporal_iter',2,...                       % number of block-coordinate descent steps 
     'fudge_factor',0.98,...                     % bias correction for AR coefficients
     'merge_thr',merge_thr,...                    % merging threshold
-    'maxthr',0.05,...                           % threshold of max value below which values are discarded (default: 0.1)
+    'maxthr',0.0,...                           % threshold of max value below which values are discarded (default: 0.1)
+    'medw',[3,3],...                % size of median filter (default: [3,3])
     'gSig',tau...
     );
 % Data pre-processing
