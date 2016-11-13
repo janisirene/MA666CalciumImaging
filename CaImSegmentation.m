@@ -1,4 +1,4 @@
-function [SpatMap,CaSignal,Spikes,width,height] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize)
+function [SpatMap,CaSignal,Spikes,width,height,Cn] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize)
 %CaImSegmentation.m
 %   See Pnevmatikakis & Paninski, 2014 & 2016, for their matrix factorization
 %     algorithm to automate image segmentation for calcium imaging data.
@@ -103,7 +103,7 @@ options = CNMFSetParms(...
     'temporal_iter',2,...                       % number of block-coordinate descent steps 
     'fudge_factor',0.98,...                     % bias correction for AR coefficients
     'merge_thr',merge_thr,...                    % merging threshold
-    'maxthr',0.0,...                           % threshold of max value below which values are discarded (default: 0.1)
+    'maxthr',0.1,...                           % threshold of max value below which values are discarded (default: 0.1)
     'medw',[3,3],...                % size of median filter (default: [3,3])
     'gSig',tau...
     );

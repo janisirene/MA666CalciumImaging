@@ -18,3 +18,4 @@ for i = 2:N
     t.nextDirectory;
     im(:,:,i) = t.read();
 end
+t.close;
