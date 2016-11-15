@@ -109,14 +109,16 @@ divisor = zeros(width,height);
 maxlag = 5;
 for ii=1:width
     for jj=1:height
-            for kk=-estNeuronSize:estNeuronSize
-                for ll=-estNeuronSize:estNeuronSize
-                    if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height %&& kk ~= 0 && ll ~= 0
-                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
-                        divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
-                    end
-                end
+        rowVec = ii-estNeuronSize:ii+estNeuronSize;colVec = jj-estNeuronSize:jj+estNeuronSize;
+        rowVec(rowVec<0) = 0;rowVec(rowVec>width) = 0;rowVec = rowVec(rowVec~=0);
+        colVec(colVec<0) = 0;colVec(colVec<height) = 0;colVec = colVec(colVec~=0);
+        for kk=rowVec
+            for ll=colVec
+                summedCrossCorr(kk,ll) = summedCrossCorr(kk,ll)+...
+                    max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(kk,ll,:)),maxlag,'coeff'));
+                divisor(kk,ll) = divisor(kk,ll)+1;
             end
+        end
     end
 end
 summedCrossCorr = summedCrossCorr./divisor;
@@ -143,9 +145,7 @@ xlabel('Spatial Average Maximum Cross-Correlation');ylabel('Count');
 title('Histogram of Maximum Cross-Correlation Coefficients');
 legend('Histogram','Bonferroni-Corrected Threshold');
 
-
-
-% morphological opening and closing?
+% morphological opening and closing
 se = strel('disk',round(estNeuronSize/4));
 se2 = strel('disk',round(estNeuronSize));
 finalBinaryImage = imclose(imopen(binaryCrossCorr,se),se2);
@@ -165,6 +165,27 @@ end
 %  attempt to figure out the distribution of these coefficients and then 
 %  eliminate regions in the image with low summed cross-correlation
 %  coefficients (indicating that they lie at the border between two cells)
+
+% get all possible cross-correlations between nearby pixels
+%  linear indexing to row-column indexing
+adjMat = zeros(width*height,width*height);
+for ii=1:width*height
+    [rowInd1,colInd1] = ind2sub(size(summedCrossCorr),ii);
+    rowVec = rowInd1-estNeuronSize:rowInd1+estNeuronSize;
+    rowVec(rowVec<0) = 0;rowVec(rowVec>width) = 0;
+    rowVec = rowVec(rowVec~=0);
+    colVec = colInd1-estNeuronSize:colInd1+estNeuronSize;
+    colVec(colVec<0) = 0;colVec(colVec>height) = 0;
+    colVec = colVec(colVec~=0);
+    for jj=rowVec
+        for kk=colVec
+        rowInd2 = jj;colInd2 = kk;
+        adjMat(ii,jj) = max(xcorr(squeeze(fltVideo(rowInd1,colInd1,:)),...
+                squeeze(fltVideo(rowInd2,colInd2,:)),maxlag,'coeff'));
+        end
+    end
+end
+
 
 
 % bwconncomp finds groups in the binary image
