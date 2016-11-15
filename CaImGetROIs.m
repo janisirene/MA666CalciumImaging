@@ -148,15 +148,15 @@ legend('Histogram','Bonferroni-Corrected Threshold');
 % morphological opening and closing
 se = strel('disk',round(estNeuronSize/4));
 se2 = strel('disk',round(estNeuronSize));
-finalBinaryImage = imclose(imopen(binaryCrossCorr,se),se2);
+tempBinaryImage = imclose(imopen(binaryCrossCorr,se),se2);
 
-figure();imagesc(finalBinaryImage);colormap('bone');
+figure();imagesc(tempBinaryImage);colormap('bone');
 title('Binary Mask for ROI Detection');
 
 % remove noisy background
 maskedVideo = zeros(size(fltVideo));
 for ii=1:numFrames 
-    maskedVideo(:,:,ii) = fltVideo(:,:,ii).*finalBinaryImage;
+    maskedVideo(:,:,ii) = fltVideo(:,:,ii).*tempBinaryImage;
 end
 
 % h = fspecial('laplacian');
@@ -168,27 +168,29 @@ end
 
 % get all possible cross-correlations between nearby pixels
 %  linear indexing to row-column indexing
-adjMat = zeros(width*height,width*height);
+bigMat = zeros(width*height,width*height);
 for ii=1:width*height
-    [rowInd1,colInd1] = ind2sub(size(summedCrossCorr),ii);
-    rowVec = rowInd1-estNeuronSize:rowInd1+estNeuronSize;
-    rowVec(rowVec<0) = 0;rowVec(rowVec>width) = 0;
-    rowVec = rowVec(rowVec~=0);
-    colVec = colInd1-estNeuronSize:colInd1+estNeuronSize;
-    colVec(colVec<0) = 0;colVec(colVec>height) = 0;
-    colVec = colVec(colVec~=0);
-    for jj=rowVec
-        for kk=colVec
-        rowInd2 = jj;colInd2 = kk;
-        adjMat(ii,jj) = max(xcorr(squeeze(fltVideo(rowInd1,colInd1,:)),...
-                squeeze(fltVideo(rowInd2,colInd2,:)),maxlag,'coeff'));
+    [rowInd1,colInd1] = ind2sub(size(tempBinaryImage),ii);
+    if tempBinaryImage(rowInd1,colInd1) ~= 0
+        rowVec = rowInd1-estNeuronSize:rowInd1+estNeuronSize;
+        rowVec(rowVec<0) = 0;rowVec(rowVec>width) = 0;
+        rowVec = rowVec(rowVec~=0);
+        colVec = colInd1-estNeuronSize:colInd1+estNeuronSize;
+        colVec(colVec<0) = 0;colVec(colVec>height) = 0;
+        colVec = colVec(colVec~=0);
+        for jj=rowVec
+            for kk=colVec
+                rowInd2 = jj;colInd2 = kk;
+                secondInd = sub2ind(size(tempBinaryImage),rowInd2,colInd2);
+                bigMat(ii,secondInd) = max(xcorr(squeeze(fltVideo(rowInd1,colInd1,:)),...
+                    squeeze(fltVideo(rowInd2,colInd2,:)),maxlag,'coeff'));
+            end
         end
     end
 end
 
 
-
 % bwconncomp finds groups in the binary image
-Components = bwconncomp(finalBinaryImage);
+Components = bwconncomp(tempBinaryImage);
 Centroids = regionprops(Components,'Centroid');
 end
