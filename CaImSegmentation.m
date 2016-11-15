@@ -1,4 +1,4 @@
-function [SpatMap,CaSignal,Spikes,width,height,Cn] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize)
+% function [SpatMap,CaSignal,Spikes,width,height,Cn] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize)
 %CaImSegmentation.m
 %   See Pnevmatikakis & Paninski, 2014 & 2016, for their matrix factorization
 %     algorithm to automate image segmentation for calcium imaging data.
@@ -95,12 +95,14 @@ K = maxNeurons;                        % number of components to be found - user
 tau = estNeuronSize;                   % std of gaussian kernel (size of neuron) - 4 is a good start 
 p = 2;                                % order of autoregressive system (p = 0 no dynamics, p=1 just decay, p = 2, both rise and decay)
 merge_thr = 0.8;                       % merging threshold
+tsub = ceil(size(Y,3) / 5000);
 
 options = CNMFSetParms(...                      
     'd1',d1,'d2',d2,...                         % dimensions of datasets
-    'search_method','dilate','dist',100,...       % search locations when updating spatial components
+    'search_method','dilate','dist',8,...       % search locations when updating spatial components
     'deconv_method','constrained_foopsi',...    % activity deconvolution method
-    'temporal_iter',2,...                       % number of block-coordinate descent steps 
+    'ssub', 1,...                            % spatial downsampling factor (default: 1)
+    'tsub', tsub,...                            % temporal downsampling factor (default: 1)    'temporal_iter',2,...                       % number of block-coordinate descent steps 
     'fudge_factor',0.98,...                     % bias correction for AR coefficients
     'merge_thr',merge_thr,...                    % merging threshold
     'maxthr',0.1,...                           % threshold of max value below which values are discarded (default: 0.1)
@@ -111,10 +113,14 @@ options = CNMFSetParms(...
 
 [P,Y] = preprocess_data(Y,p);
 
+
 % fast initialization of spatial components using greedyROI and HALS
 
 [Ain,Cin,bin,fin,center] = initialize_components(Y,K,tau,options,P);  % initialize
 refine_components = false;
+if refine_components
+    [Ain,Cin,center] = manually_refine_components(Y,Ain,Cin,center,Cn,tau,options);
+end
 % display centers of found components
 Cn =  correlation_image(Y); %reshape(P.sn,d1,d2);  %max(Y,[],3); %std(Y,[],3); % image statistic (only for display purposes)
     
