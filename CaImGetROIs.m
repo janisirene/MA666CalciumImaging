@@ -1,22 +1,26 @@
 function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuronSize,maxNeurons)
 %CaImGetROIs.m
-%   Take as input a .avi file and get out the individual ROIs that a simple
-%    algorithm has identified. Use with a .avi video that Janis created, or
-%    it is easy to alter the code to input a .tif file.
+%   Take as input a .avi or .tif file and get out the individual ROIs that a simple
+%    algorithm has identified.
 %   1) Performs an adaptive Wiener filter on each frame of the image to
 %       reduce noise
-%   2) Calculates the maximum autocorrelation across time of each pixel
-%   3) Performs a statistical test on these maximum autocorrelations to
-%       find pixels with significant autocorrelations (accounts for
-%       multiple comparisons) to create a binary image
+%   2) Calculates a spatial average maximum cross-correlation across time 
+%       at each pixel (maximum crosss-correlation with small collection of
+%       neighboring pixels)
+%   3) Performs a statistical test on these cross-correlations to
+%       find pixels with significant spatiotemporal correlations with itself
+%       and it's neighbors to create a binary image
 %   4) Performs morphological closing to fill in any gaps for each of the
-%       individual ROIs 
+%       individual ROIs and opening to remove very small ROIs
+%   5) Clustering to merge or separate tentative ROIs
 %   5) Uses the MATLAB command bwconncomp to identify individual objects in
 %       the binary image, get the set of pixels comprising that object, and
 %       find object centroids
 %
-% INPUT: filename - .avi filename as a string
+% INPUT: filename - .avi or .tif filename as a string
 %        estNeuronSize - size of ROI in pixels (defaults to 3)
+%        maxNeurons - maximum number of neurons in field of view (defaults
+%         to 100) 
 % OUTPUT: finalBinaryImage - binary image of identified ROIs
 %         Components - a structure giving information about the identified
 %          ROIs (how many, what pixels do they comprise)
@@ -25,19 +29,16 @@ function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuro
 % 
 %Created: 2016/11/08
 % Byron Price
-%Updated: 2016/11/10
-%  By: Byron Price
+%Updated: 2016/11/15 
+%  By: Byron Price & Janis Intoy
 
 % Future steps:
 %  1) think about the noise inherent in actual calcium imaging videos
 %      e.g. if the noise is correlated in time across more than 1 lag, then
 %      many of the noisy pixels will be picked out as having significant
 %      autocorrelations
-%  2) consider an autocorrelation model that accounts for typical dynamics
-%      of calcium fluorescence
-%  3) consider what to do if two ROIs overlap (cross-covariance or
-%      cross-correlation amongst some window of neighboring pixels)
-%  4) test on real data
+%  2) clustering algorithms
+%  3) remove non-stationary background 
 
 if nargin < 2
     estNeuronSize = 5;
@@ -46,6 +47,7 @@ elseif nargin < 3
     maxNeurons = 100;
 end
 
+estNeuronSize = round(estNeuronSize);
 estNeuronArea = pi*estNeuronSize*estNeuronSize;
 
 if ischar(filename) % data input is .avi
@@ -79,28 +81,46 @@ height = size(fullVideo,2);
 fltVideo = zeros(size(fullVideo));
 for ii=1:numFrames
     temp = fullVideo(:,:,ii);
-    fltVideo(:,:,ii) = wiener2(temp,[5,5]);
+    fltVideo(:,:,ii) = wiener2(temp,[estNeuronSize,estNeuronSize]);
 end
 
 %implay(uint8(fullVideo));
 
 
-% obtain autocorrelation image
-autoCorrImg = zeros(width,height);
+% % obtain autocorrelation image
+% autoCorrImg = zeros(width,height);
+% for ii=1:width
+%     for jj=1:height
+%         [acf,~] = autocorr(squeeze(fltVideo(ii,jj,:)));
+%         % pixels with a temporal structure will have larger acf at nonzero
+%         % lags
+%         if isnan(acf) ~= 1
+%             autoCorrImg(ii,jj) = max(abs(acf(acf<1)));
+%         end
+%     end
+% end
+% 
+% figure();imagesc(autoCorrImg);caxis([0 1]);colormap('jet');colorbar;
+% title('Maximum Autocorrelation Image');
+
+% look for components to either merge or separate with cross-correlation
+summedCrossCorr = zeros(width,height);
+divisor = zeros(width,height);
+maxlag = 5;
 for ii=1:width
     for jj=1:height
-        [acf,~] = autocorr(squeeze(fltVideo(ii,jj,:)));
-        % pixels with a temporal structure will have larger acf at nonzero
-        % lags
-        if isnan(acf) ~= 1
-            autoCorrImg(ii,jj) = max(abs(acf(acf<1)));
-        end
+            for kk=-estNeuronSize:estNeuronSize
+                for ll=-estNeuronSize:estNeuronSize
+                    if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height %&& kk ~= 0 && ll ~= 0
+                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(maskedVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
+                        divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
+                    end
+                end
+            end
     end
 end
-
-figure();imagesc(autoCorrImg);caxis([0 1]);colormap('jet');colorbar;
-title('Maximum Autocorrelation Image');
-
+summedCrossCorr = summedCrossCorr./divisor;
+figure();imagesc(summedCrossCorr);title('Spatial Average Maximum Cross-Correlation Image');
 
 % for thresholding ... perform statistical test on autocorrelation
 %  coefficients
@@ -111,20 +131,24 @@ numComparisons = width*height;
 % threshold = q/sqrt(numFrames); 
 
 totalNeuronArea = maxNeurons*estNeuronArea;
-threshold = quantile(autoCorrImg(:),1-totalNeuronArea/numComparisons);
-binaryAutoCorr = autoCorrImg > threshold;
+threshold = quantile(summedCrossCorr(:),1-totalNeuronArea/numComparisons);
+binaryCrossCorr = summedCrossCorr > threshold;
 
-figure();histogram(autoCorrImg(:));hold on;
-[N,~] = histcounts(autoCorrImg(:));
+forHistogram = binaryCrossCorr(:);
+forHistogram = forHistogram(forHistogram ~= 0);
+figure();histogram(forHistogram);hold on;
+[N,~] = histcounts(forHistogram);
 plot(ones(100,1).*threshold,linspace(0,max(N),100),'r','LineWidth',2);
-xlabel('Maximum Autocorrelation Coefficient');ylabel('Count');
-title('Histogram of Maximum Autocorrelation Coefficients');
+xlabel('Spatial Average Maximum Cross-Correlation');ylabel('Count');
+title('Histogram of Maximum Cross-Correlation Coefficients');
 legend('Histogram','Bonferroni-Corrected Threshold');
+
+
 
 % morphological opening and closing?
 se = strel('disk',round(estNeuronSize/4));
 se2 = strel('disk',round(estNeuronSize));
-finalBinaryImage = imclose(imopen(binaryAutoCorr,se),se2);
+finalBinaryImage = imclose(imopen(binaryCrossCorr,se),se2);
 
 figure();imagesc(finalBinaryImage);colormap('bone');
 title('Binary Mask for ROI Detection');
@@ -135,38 +159,15 @@ for ii=1:numFrames
     maskedVideo(:,:,ii) = fltVideo(:,:,ii).*finalBinaryImage;
 end
 
-% look for components to either merge or separate with cross-correlation
-summedCrossCorr = zeros(width,height);
-divisor = zeros(width,height);
-maxlag = 5;
-for ii=1:width
-    for jj=1:height
-            for kk=-2:2
-                for ll=-2:2
-                    if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height %&& kk ~= 0 && ll ~= 0
-                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(maskedVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
-                        divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
-                    end
-                end
-            end
-    end
-end
-summedCrossCorr = summedCrossCorr./divisor;
-figure();imagesc(summedCrossCorr);title('Summed Cross-Correlation Image');
-
-h = fspecial('laplacian');
-figure();imagesc(filter2(h,summedCrossCorr,'same'));
+% h = fspecial('laplacian');
+% figure();imagesc(filter2(h,summedCrossCorr,'same'));
 % at this point, we could try either a non-parametric statistical test or
 %  attempt to figure out the distribution of these coefficients and then 
 %  eliminate regions in the image with low summed cross-correlation
 %  coefficients (indicating that they lie at the border between two cells)
-summedCrossCorr = summedCrossCorr(:);
-figure();histogram(summedCrossCorr(summedCrossCorr~=0));
-title('Histogram of Summed Cross-Correlation Coefficients');
-xlabel('Coefficient Magnitude');ylabel('Count');
+
 
 % bwconncomp finds groups in the binary image
 Components = bwconncomp(finalBinaryImage);
 Centroids = regionprops(Components,'Centroid');
 end
-
