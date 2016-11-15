@@ -112,7 +112,7 @@ for ii=1:width
             for kk=-estNeuronSize:estNeuronSize
                 for ll=-estNeuronSize:estNeuronSize
                     if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height %&& kk ~= 0 && ll ~= 0
-                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(maskedVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
+                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
                         divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
                     end
                 end
