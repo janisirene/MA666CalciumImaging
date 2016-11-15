@@ -2,16 +2,17 @@
 % Explain what an autoregressive model is and how this applies
 
 %% Generate spikes from exponential distribution
-rate = 1000; % how often spikes occur
-dur = .01; % duration of trial
-dt = 0.0001; % time step
+rate = 1000; % spike rate (Hz)
+dur = .01; % duration of trial (s)
+dt = 0.0001; % time step (s)
+T = (0:dt:dur);
 
 spikes = zeros(dur/dt+1,1);
 
 % Generating spikes from a exponential distribution
-for t=0:dt:dur
+for t=1:length(T)
     if (rate*dt)>=rand
-        spikes(round(t/dt)) = 1;
+        spikes(t) = 1;
     end
 end
 

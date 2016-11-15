@@ -66,16 +66,17 @@ table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px soli
 
 
 
-  </style></head><body><div class="content"><h1>Autoregressive Model for Calcium Dynamics</h1><!--introduction--><p>Explain what an autoregressive model is and how this applies</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Generate spikes from exponential distribution</a></li><li><a href="#2">Applying the AR model to Action Potentials</a></li></ul></div><h2>Generate spikes from exponential distribution<a name="1"></a></h2><pre class="codeinput">rate = 1000; <span class="comment">% how often spikes occur</span>
-dur = .01; <span class="comment">% duration of trial</span>
-dt = 0.0001; <span class="comment">% time step</span>
+  </style></head><body><div class="content"><h1>Autoregressive Model for Calcium Dynamics</h1><!--introduction--><p>Explain what an autoregressive model is and how this applies</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Generate spikes from exponential distribution</a></li><li><a href="#2">Applying the AR model to Action Potentials</a></li></ul></div><h2>Generate spikes from exponential distribution<a name="1"></a></h2><pre class="codeinput">rate = 1000; <span class="comment">% spike rate (Hz)</span>
+dur = .01; <span class="comment">% duration of trial (s)</span>
+dt = 0.0001; <span class="comment">% time step (s)</span>
+T = (0:dt:dur);
 
 spikes = zeros(dur/dt+1,1);
 
 <span class="comment">% Generating spikes from a exponential distribution</span>
-<span class="keyword">for</span> t=0:dt:dur
+<span class="keyword">for</span> t=1:length(T)
     <span class="keyword">if</span> (rate*dt)&gt;=rand
-        spikes(round(t/dt)) = 1;
+        spikes(t) = 1;
     <span class="keyword">end</span>
 <span class="keyword">end</span>
 </pre><h2>Applying the AR model to Action Potentials<a name="2"></a></h2><p>Before implementing the calculation, consider what each of the parameters in the model does. Look again at the AR model.</p><p><img src="ARmodel_eq06263262507588699212.png" alt="$c(t) = \sum_{j=1}^p\gamma_jc(t-j)+s(t)$"></p><p>Consider the following for <img src="ARmodel_eq12081968486337205601.png" alt="$p=1$">: * What does the parameter <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> represent? * How do changes to <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> affect the calcium signal? * What are reasonable values for this parameter?</p><p>Look at what happens when we vary <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$">:</p><pre class="codeinput">P = 1;
@@ -100,16 +101,17 @@ legend(num2str(Gamma([1,g])'))
 % Explain what an autoregressive model is and how this applies
 
 %% Generate spikes from exponential distribution
-rate = 1000; % how often spikes occur
-dur = .01; % duration of trial
-dt = 0.0001; % time step
+rate = 1000; % spike rate (Hz)
+dur = .01; % duration of trial (s)
+dt = 0.0001; % time step (s)
+T = (0:dt:dur);
 
 spikes = zeros(dur/dt+1,1);
 
 % Generating spikes from a exponential distribution
-for t=0:dt:dur
+for t=1:length(T)
     if (rate*dt)>=rand
-        spikes(round(t/dt)) = 1;
+        spikes(t) = 1;
     end
 end
 
