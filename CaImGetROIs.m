@@ -134,7 +134,7 @@ totalNeuronArea = maxNeurons*estNeuronArea;
 threshold = quantile(summedCrossCorr(:),1-totalNeuronArea/numComparisons);
 binaryCrossCorr = summedCrossCorr > threshold;
 
-forHistogram = binaryCrossCorr(:);
+forHistogram = summedCrossCorr(:);
 forHistogram = forHistogram(forHistogram ~= 0);
 figure();histogram(forHistogram);hold on;
 [N,~] = histcounts(forHistogram);
