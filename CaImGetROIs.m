@@ -144,7 +144,7 @@ for ii=1:width
             for kk=-2:2
                 for ll=-2:2
                     if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height %&& kk ~= 0 && ll ~= 0
-                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(maskedVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
+                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
                         divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
                     end
                 end
@@ -154,6 +154,23 @@ end
 summedCrossCorr = summedCrossCorr./divisor;
 figure();imagesc(summedCrossCorr);title('Summed Cross-Correlation Image');
 
+% adjMat = zeros(width*height);
+% for ii = 1:length(adjMat)
+%     [idxr, idxc] = ind2sub([height, width], ii);
+%     if finalBinaryImage(idxr, idxc) == 0
+%         continue; 
+%     end
+%     for jj = 1:length(adjMat)
+%         [jdxr, jdxc] = ind2sub([height, width], jj);
+%         d = sqrt((idxr - jdxr)^2 + (idxc - jdxc)^2);
+%         if finalBinaryImage(jdxr, jdxc) == 0 || d > 2 * estNeuronSize
+%             continue;
+%         end
+%         adjMat(ii, jj) = max(xcorr(squeeze(maskedVideo(idxr, idxc, :)),...
+%             squeeze(maskedVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
+%     end
+% end
+% keyboard;
 h = fspecial('laplacian');
 figure();imagesc(filter2(h,summedCrossCorr,'same'));
 % at this point, we could try either a non-parametric statistical test or
