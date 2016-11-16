@@ -171,7 +171,7 @@ xlabel('Coefficient Magnitude');ylabel('Count');
 % array
 usePixels = find(finalBinaryImage); % only use pixels deemed signal
 [tempr, tempc] = meshgrid(1:length(usePixels), 1:length(usePixels));
-indexArray = [tempr(:), tempc(:)]; % index of usePixel
+indexArray = [tempr(:), tempc(:)]; % index in usePixel
 kill = (indexArray(:, 1) <= indexArray(:, 2));  % unique pairs
 indexArray(kill, :) = [];
 usePixelArray = usePixels(indexArray); % actual pixel indices in image
@@ -179,29 +179,47 @@ clear tempr tempc;
 
 % distance between pixels - skip pairs that are too far apart or pairs that
 % are the same pixel (or leave them all in to use linkage)
+% keep formatting consistent with the output of pdist so that we can use
+% linkage and clustering on it
 col = ceil(usePixelArray / width);
 row = usePixelArray - width * (col - 1);
 pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
 
+% get cross correlations between pairs of pixels
 xcorrArray = zeros(length(indexArray), 1);
 for ii = 1:length(xcorrArray)
-    if pixelDist(ii) > 2 * estNeuronSize
-        continue; 
+    if pixelDist(ii) > 3 * estNeuronSize
+        continue; % too far apart
     end
     idxr = row(ii, 1);
     idxc = col(ii, 1);
     jdxr = row(ii, 2);
-    jdxc = row(ii, 2);
+    jdxc = col(ii, 2);
 
     xcorrArray(ii) = max(xcorr(squeeze(maskedVideo(idxr, idxc, :)),...
-        squeeze(maskedVideo(jdxr, jdxc, :)), maxlag, 'unbiased'));
+        squeeze(maskedVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
 end
-xcorrArray = max(0, xcorrArray); % less than 0 just ignore it
-metric = max(xcorrArray) - xcorrArray; % 
-Z = linkage(metric', 'average');
-t = cluster(Z);
-keyboard;
+% clustering works on dissimilarity
+dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer closer together
+Z = linkage(dissimilarity', 'complete');
+t = cluster(Z, 'cutoff', .5, 'criterion', 'distance');
+%t = cluster(Z, 'maxclust', maxNeurons);
 
+figure(); dendrogram(Z);
+title('hierarchical clustering of cross correlations');
+
+col = 'rbmg';
+figure(); hold on;
+imagesc(finalBinaryImage);
+colormap gray;
+for i = 1:max(t)
+    idx = (t == i);
+    [r, c] = ind2sub([width, height], usePixels(idx));
+    K = boundary(c, r);
+    plot(c(K), r(K), 'linewidth', 2);
+  %  plot(c, r, '.', 'Color', col(rem(i, length(col))+1));
+end
+set(gca, 'YDir', 'reverse');
 
 % bwconncomp finds groups in the binary image
 Components = bwconncomp(finalBinaryImage);
