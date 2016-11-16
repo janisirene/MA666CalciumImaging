@@ -215,18 +215,18 @@ dissimilarity = dissimilarity(:);
 % clustering works on dissimilarity
 Z = linkage(dissimilarity', 'complete');
 t = cluster(Z, 'cutoff', .5, 'criterion', 'distance');
-t = cluster(Z, 'maxclust', maxNeurons);
+% t = cluster(Z, 'maxclust', maxNeurons);
 
 col = 'rbmg';
 figure(); hold on;
 imagesc(tempBinaryImage);
 colormap gray;
 for i = 1:max(t)
-    idx = (t == i);
-    [r, c] = ind2sub([width, height], find(idx));
-    K = boundary(c, r);
-    plot(c(K), r(K), 'linewidth', 2);
-  %  plot(c, r, '.', 'Color', col(rem(i, length(col))+1));
+    indexArray = (t == i);
+    [r, c] = ind2sub([width, height], find(indexArray));
+%     K = boundary(c, r);
+%     plot(c(K), r(K), 'linewidth', 2);
+   plot(c, r, '.', 'markersize', 15);
 end
 set(gca, 'YDir', 'reverse');
 title('hierarchical clusters (big version)');
@@ -236,15 +236,12 @@ title('hierarchical clusters (big version)');
 % store values in a sparse matrix by making an index array and a value
 % array
 usePixels = find(tempBinaryImage); % only use pixels deemed signal
-[tempr, tempc] = meshgrid(1:length(usePixels), 1:length(usePixels));
-indexArray = [tempr(:), tempc(:)]; % index in usePixel
-kill = (indexArray(:, 1) <= indexArray(:, 2));  % unique pairs
-indexArray(kill, :) = [];
-usePixelArray = usePixels(indexArray); % actual pixel indices in image
-clear tempr tempc;
+idx = find(tril(true(length(usePixels)), -1));
+[tempr, tempc] = ind2sub([length(usePixels), length(usePixels)], idx);
+indexArray = [tempr, tempc];
+usePixelArray = usePixels(indexArray);
 
-% distance between pixels - skip pairs that are too far apart or pairs that
-% are the same pixel (or leave them all in to use linkage)
+% distance between pixels
 % keep formatting consistent with the output of pdist so that we can use
 % linkage and clustering on it
 col = ceil(usePixelArray / width);
@@ -254,33 +251,33 @@ pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
 % get cross correlations between pairs of pixels
 xcorrArray = zeros(length(indexArray), 1);
 for ii = 1:length(xcorrArray)
-    if pixelDist(ii) > 3 * estNeuronSize
-        continue; % too far apart
+    if pixelDist > estNeuronSize
+        continue; 
     end
+    
     idxr = row(ii, 1);
     idxc = col(ii, 1);
     jdxr = row(ii, 2);
     jdxc = col(ii, 2);
-
-    xcorrArray(ii) = max(xcorr(squeeze(maskedVideo(idxr, idxc, :)),...
-        squeeze(maskedVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
+    
+    xcorrArray(ii) = max(xcorr(squeeze(fltVideo(idxr, idxc, :)),...
+        squeeze(fltVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
 end
 % clustering works on dissimilarity
-dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer closer together
+dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer together
 Z = linkage(dissimilarity', 'complete');
 t = cluster(Z, 'cutoff', .5, 'criterion', 'distance');
-%t = cluster(Z, 'maxclust', maxNeurons);
+%t = cluster(Z, 'maxclust', 2*maxNeurons);
 
-col = 'rbmg';
 figure(); hold on;
 imagesc(tempBinaryImage);
 colormap gray;
 for i = 1:max(t)
-    idx = (t == i);
-    [r, c] = ind2sub([width, height], usePixels(idx));
-    K = boundary(c, r);
-    plot(c(K), r(K), 'linewidth', 2);
-  %  plot(c, r, '.', 'Color', col(rem(i, length(col))+1));
+    indexArray = (t == i);
+    [r, c] = ind2sub([width, height], usePixels(indexArray));
+%     K = boundary(c, r);
+%     plot(c(K), r(K), 'linewidth', 2);
+   plot(c, r, '.', 'markersize', 15);
 end
 set(gca, 'YDir', 'reverse');
 title('hierarchical clusters (small version)');
