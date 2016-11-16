@@ -8,11 +8,11 @@
 % modified: Novemeber 10, 2016 - added hit and false alarm rate calcs
 
 %% simulate data
-sz = 100; % sz x sz image
+sz = 20; % sz x sz image
 dur = 10; % seconds sampled at 30Hz
-nROI = 25; % number of cells
+nROI = 2; % number of cells
 snr = 10; % signal to noise ratio
-svMovie = ''; % filename to save movie as .avi
+svMovie = ''; % filename to save movie as .tif
 
 [ROI, full] = simulateCalcImg(sz, dur, nROI, snr, svMovie);
 

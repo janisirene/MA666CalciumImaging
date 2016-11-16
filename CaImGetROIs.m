@@ -1,4 +1,4 @@
-function [finalBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuronSize,maxNeurons)
+function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuronSize,maxNeurons)
 %CaImGetROIs.m
 %   Take as input a .avi or .tif file and get out the individual ROIs that a simple
 %    algorithm has identified.
@@ -109,9 +109,10 @@ divisor = zeros(width,height);
 maxlag = 5;
 for ii=1:width
     for jj=1:height
-        rowVec = ii-estNeuronSize:ii+estNeuronSize;colVec = jj-estNeuronSize:jj+estNeuronSize;
-        rowVec(rowVec<0) = 0;rowVec(rowVec>width) = 0;rowVec = rowVec(rowVec~=0);
-        colVec(colVec<0) = 0;colVec(colVec<height) = 0;colVec = colVec(colVec~=0);
+        rowVec = max(1, ii-estNeuronSize):min(width, ii+estNeuronSize);
+        colVec = max(1, jj-estNeuronSize):min(height, jj+estNeuronSize);
+%         rowVec(rowVec<0) = 0;rowVec(rowVec>width) = 0;rowVec = rowVec(rowVec~=0);
+%         colVec(colVec<0) = 0;colVec(colVec<height) = 0;colVec = colVec(colVec~=0);
         for kk=rowVec
             for ll=colVec
                 summedCrossCorr(kk,ll) = summedCrossCorr(kk,ll)+...
@@ -159,13 +160,33 @@ for ii=1:numFrames
     maskedVideo(:,:,ii) = fltVideo(:,:,ii).*tempBinaryImage;
 end
 
+maxlag = 5;
+%% summed crosscorr
+% look for components to either merge or separate with cross-correlation
+summedCrossCorr = zeros(width,height);
+divisor = zeros(width,height);
+for ii=1:width
+    for jj=1:height
+            for kk=-2:2
+                for ll=-2:2
+                    if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height %&& kk ~= 0 && ll ~= 0
+                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
+                        divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
+                    end
+                end
+            end
+    end
+end
+
 % h = fspecial('laplacian');
 % figure();imagesc(filter2(h,summedCrossCorr,'same'));
+
 % at this point, we could try either a non-parametric statistical test or
 %  attempt to figure out the distribution of these coefficients and then 
 %  eliminate regions in the image with low summed cross-correlation
 %  coefficients (indicating that they lie at the border between two cells)
 
+% full version of cross-correlation adjacency matrix
 % get all possible cross-correlations between nearby pixels
 %  linear indexing to row-column indexing
 bigMat = zeros(width*height,width*height);
@@ -188,7 +209,81 @@ for ii=1:width*height
         end
     end
 end
+dissimilarity = 1 - bigMat(tril(true(size(bigMat)), -1)); % lower part of the matrix
+dissimilarity = dissimilarity(:);
 
+% clustering works on dissimilarity
+Z = linkage(dissimilarity', 'complete');
+t = cluster(Z, 'cutoff', .5, 'criterion', 'distance');
+t = cluster(Z, 'maxclust', maxNeurons);
+
+col = 'rbmg';
+figure(); hold on;
+imagesc(tempBinaryImage);
+colormap gray;
+for i = 1:max(t)
+    idx = (t == i);
+    [r, c] = ind2sub([width, height], find(idx));
+    K = boundary(c, r);
+    plot(c(K), r(K), 'linewidth', 2);
+  %  plot(c, r, '.', 'Color', col(rem(i, length(col))+1));
+end
+set(gca, 'YDir', 'reverse');
+title('hierarchical clusters (big version)');
+
+
+%%%% smaller version of adjacency matrix and hierarchical clustering
+% store values in a sparse matrix by making an index array and a value
+% array
+usePixels = find(tempBinaryImage); % only use pixels deemed signal
+[tempr, tempc] = meshgrid(1:length(usePixels), 1:length(usePixels));
+indexArray = [tempr(:), tempc(:)]; % index in usePixel
+kill = (indexArray(:, 1) <= indexArray(:, 2));  % unique pairs
+indexArray(kill, :) = [];
+usePixelArray = usePixels(indexArray); % actual pixel indices in image
+clear tempr tempc;
+
+% distance between pixels - skip pairs that are too far apart or pairs that
+% are the same pixel (or leave them all in to use linkage)
+% keep formatting consistent with the output of pdist so that we can use
+% linkage and clustering on it
+col = ceil(usePixelArray / width);
+row = usePixelArray - width * (col - 1);
+pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
+
+% get cross correlations between pairs of pixels
+xcorrArray = zeros(length(indexArray), 1);
+for ii = 1:length(xcorrArray)
+    if pixelDist(ii) > 3 * estNeuronSize
+        continue; % too far apart
+    end
+    idxr = row(ii, 1);
+    idxc = col(ii, 1);
+    jdxr = row(ii, 2);
+    jdxc = col(ii, 2);
+
+    xcorrArray(ii) = max(xcorr(squeeze(maskedVideo(idxr, idxc, :)),...
+        squeeze(maskedVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
+end
+% clustering works on dissimilarity
+dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer closer together
+Z = linkage(dissimilarity', 'complete');
+t = cluster(Z, 'cutoff', .5, 'criterion', 'distance');
+%t = cluster(Z, 'maxclust', maxNeurons);
+
+col = 'rbmg';
+figure(); hold on;
+imagesc(tempBinaryImage);
+colormap gray;
+for i = 1:max(t)
+    idx = (t == i);
+    [r, c] = ind2sub([width, height], usePixels(idx));
+    K = boundary(c, r);
+    plot(c(K), r(K), 'linewidth', 2);
+  %  plot(c, r, '.', 'Color', col(rem(i, length(col))+1));
+end
+set(gca, 'YDir', 'reverse');
+title('hierarchical clusters (small version)');
 
 % bwconncomp finds groups in the binary image
 Components = bwconncomp(tempBinaryImage);
