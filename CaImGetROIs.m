@@ -230,7 +230,7 @@ pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
 % get cross correlations between pairs of pixels
 xcorrArray = zeros(length(indexArray), 1);
 for ii = 1:length(xcorrArray)
-    if pixelDist > estNeuronSize
+    if pixelDist(ii) > estNeuronSize
         continue; 
     end
     
