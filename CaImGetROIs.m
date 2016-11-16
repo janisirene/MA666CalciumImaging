@@ -135,10 +135,12 @@ for ii=1:numFrames
     maskedVideo(:,:,ii) = fltVideo(:,:,ii).*finalBinaryImage;
 end
 
+maxlag = 5;
+%% summed crosscorr
+%{
 % look for components to either merge or separate with cross-correlation
 summedCrossCorr = zeros(width,height);
 divisor = zeros(width,height);
-maxlag = 5;
 for ii=1:width
     for jj=1:height
             for kk=-2:2
@@ -154,25 +156,6 @@ end
 summedCrossCorr = summedCrossCorr./divisor;
 figure();imagesc(summedCrossCorr);title('Summed Cross-Correlation Image');
 
-% adjMat = zeros(width*height);
-% for ii = 1:length(adjMat)
-%     [idxr, idxc] = ind2sub([height, width], ii);
-%     if finalBinaryImage(idxr, idxc) == 0
-%         continue; 
-%     end
-%     for jj = 1:length(adjMat)
-%         [jdxr, jdxc] = ind2sub([height, width], jj);
-%         d = sqrt((idxr - jdxr)^2 + (idxc - jdxc)^2);
-%         if finalBinaryImage(jdxr, jdxc) == 0 || d > 2 * estNeuronSize
-%             continue;
-%         end
-%         adjMat(ii, jj) = max(xcorr(squeeze(maskedVideo(idxr, idxc, :)),...
-%             squeeze(maskedVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
-%     end
-% end
-% keyboard;
-h = fspecial('laplacian');
-figure();imagesc(filter2(h,summedCrossCorr,'same'));
 % at this point, we could try either a non-parametric statistical test or
 %  attempt to figure out the distribution of these coefficients and then 
 %  eliminate regions in the image with low summed cross-correlation
@@ -181,6 +164,43 @@ summedCrossCorr = summedCrossCorr(:);
 figure();histogram(summedCrossCorr(summedCrossCorr~=0));
 title('Histogram of Summed Cross-Correlation Coefficients');
 xlabel('Coefficient Magnitude');ylabel('Count');
+%}
+
+%% adjacency matrix and hierarchical clustering
+% store values in a sparse matrix by making an index array and a value
+% array
+usePixels = find(finalBinaryImage); % only use pixels deemed signal
+[tempr, tempc] = meshgrid(1:length(usePixels), 1:length(usePixels));
+indexArray = [tempr(:), tempc(:)]; % index of usePixel
+usePixelArray = usePixels(indexArray); % actual pixel indices in image
+clear tempr tempc;
+
+% distance between pixels - skip pairs that are too far apart or pairs that
+% are the same pixel
+col = ceil(usePixelArray / width);
+row = usePixelArray - width * (col - 1);
+pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
+kill = (pixelDist == 0) | (pixelDist > 2 * estNeuronSize);
+indexArray(kill, :) = [];
+col(kill, :) = [];
+row(kill, :) = [];
+
+valueArray = zeros(length(indexArray), 1);
+for ii = 1:length(valueArray)
+    idxr = row(ii, 1);
+    idxc = col(ii, 1);
+    jdxr = row(ii, 2);
+    jdxc = row(ii, 2);
+
+    valueArray(ii) = max(xcorr(squeeze(maskedVideo(idxr, idxc, :)),...
+        squeeze(maskedVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
+end
+% create the adjacency matrix (sparse)
+adjMat = sparse(indexArray(:, 1), indexArray(:, 2), valueArray, ...
+    width*height, width*height);
+
+keyboard;
+
 
 % bwconncomp finds groups in the binary image
 Components = bwconncomp(finalBinaryImage);
