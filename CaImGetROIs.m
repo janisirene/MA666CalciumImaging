@@ -172,33 +172,34 @@ xlabel('Coefficient Magnitude');ylabel('Count');
 usePixels = find(finalBinaryImage); % only use pixels deemed signal
 [tempr, tempc] = meshgrid(1:length(usePixels), 1:length(usePixels));
 indexArray = [tempr(:), tempc(:)]; % index of usePixel
+kill = (indexArray(:, 1) <= indexArray(:, 2));  % unique pairs
+indexArray(kill, :) = [];
 usePixelArray = usePixels(indexArray); % actual pixel indices in image
 clear tempr tempc;
 
 % distance between pixels - skip pairs that are too far apart or pairs that
-% are the same pixel
+% are the same pixel (or leave them all in to use linkage)
 col = ceil(usePixelArray / width);
 row = usePixelArray - width * (col - 1);
 pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
-kill = (pixelDist == 0) | (pixelDist > 2 * estNeuronSize);
-indexArray(kill, :) = [];
-col(kill, :) = [];
-row(kill, :) = [];
 
-valueArray = zeros(length(indexArray), 1);
-for ii = 1:length(valueArray)
+xcorrArray = zeros(length(indexArray), 1);
+for ii = 1:length(xcorrArray)
+    if pixelDist(ii) > 2 * estNeuronSize
+        continue; 
+    end
     idxr = row(ii, 1);
     idxc = col(ii, 1);
     jdxr = row(ii, 2);
     jdxc = row(ii, 2);
 
-    valueArray(ii) = max(xcorr(squeeze(maskedVideo(idxr, idxc, :)),...
-        squeeze(maskedVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
+    xcorrArray(ii) = max(xcorr(squeeze(maskedVideo(idxr, idxc, :)),...
+        squeeze(maskedVideo(jdxr, jdxc, :)), maxlag, 'unbiased'));
 end
-% create the adjacency matrix (sparse)
-adjMat = sparse(indexArray(:, 1), indexArray(:, 2), valueArray, ...
-    width*height, width*height);
-
+xcorrArray = max(0, xcorrArray); % less than 0 just ignore it
+metric = max(xcorrArray) - xcorrArray; % 
+Z = linkage(metric', 'average');
+t = cluster(Z);
 keyboard;
 
 
