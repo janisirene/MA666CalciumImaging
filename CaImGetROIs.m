@@ -163,11 +163,8 @@ end
 % h = fspecial('laplacian');
 % figure();imagesc(filter2(h,summedCrossCorr,'same'));
 
-% at this point, we could try either a non-parametric statistical test or
-%  attempt to figure out the distribution of these coefficients and then 
-%  eliminate regions in the image with low summed cross-correlation
-%  coefficients (indicating that they lie at the border between two cells)
 
+cutoff = .5;
 % full version of cross-correlation adjacency matrix
 % get all possible cross-correlations between nearby pixels
 %  linear indexing to row-column indexing
@@ -196,7 +193,7 @@ dissimilarity = dissimilarity(:);
 
 % clustering works on dissimilarity
 Z = linkage(dissimilarity', 'complete');
-t = cluster(Z, 'cutoff', .5, 'criterion', 'distance');
+t = cluster(Z, 'cutoff', cutoff, 'criterion', 'distance');
 % t = cluster(Z, 'maxclust', maxNeurons);
 
 col = 'rbmg';
@@ -248,7 +245,7 @@ end
 % clustering works on dissimilarity
 dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer together
 Z = linkage(dissimilarity', 'complete');
-t = cluster(Z, 'cutoff', .5, 'criterion', 'distance');
+t = cluster(Z, 'cutoff', cutoff, 'criterion', 'distance');
 %t = cluster(Z, 'maxclust', 2*maxNeurons);
 
 figure(); hold on;
@@ -263,6 +260,8 @@ for i = 1:max(t)
 end
 set(gca, 'YDir', 'reverse');
 title('hierarchical clusters (small version)');
+
+figure(); dendrogram(Z, 0, 'colorthreshold', cutoff);
 
 % bwconncomp finds groups in the binary image
 Components = bwconncomp(tempBinaryImage);
