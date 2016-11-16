@@ -160,24 +160,6 @@ for ii=1:numFrames
     maskedVideo(:,:,ii) = fltVideo(:,:,ii).*tempBinaryImage;
 end
 
-maxlag = 5;
-%% summed crosscorr
-% look for components to either merge or separate with cross-correlation
-summedCrossCorr = zeros(width,height);
-divisor = zeros(width,height);
-for ii=1:width
-    for jj=1:height
-            for kk=-2:2
-                for ll=-2:2
-                    if (ii+kk) > 0 && (jj+ll) > 0 && (ii+kk) <= width && (jj+ll) <= height %&& kk ~= 0 && ll ~= 0
-                        summedCrossCorr(ii+kk,jj+ll) = summedCrossCorr(ii+kk,jj+ll)+max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(ii+kk,jj+ll,:)),maxlag,'coeff'));
-                        divisor(ii+kk,jj+ll) = divisor(ii+kk,jj+ll)+1;
-                    end
-                end
-            end
-    end
-end
-
 % h = fspecial('laplacian');
 % figure();imagesc(filter2(h,summedCrossCorr,'same'));
 
