@@ -31,6 +31,9 @@ function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuron
 % Byron Price
 %Updated: 2016/11/15 
 %  By: Byron Price & Janis Intoy
+%
+% TO DO: instead of xcorr do cross correlatin calcs in fourier domain
+% (ifft of cross spectrum between time courses of two pixels)
 
 % Future steps:
 %  1) think about the noise inherent in actual calcium imaging videos
@@ -164,7 +167,7 @@ end
 % figure();imagesc(filter2(h,summedCrossCorr,'same'));
 
 
-cutoff = .5;
+cutoff = .2;
 %{
 % full version of cross-correlation adjacency matrix
 % get all possible cross-correlations between nearby pixels
@@ -246,8 +249,8 @@ end
 % clustering works on dissimilarity
 dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer together
 Z = linkage(dissimilarity', 'complete');
-t = cluster(Z, 'cutoff', cutoff, 'criterion', 'distance');
-%t = cluster(Z, 'maxclust', 2*maxNeurons);
+%t = cluster(Z, 'cutoff', cutoff, 'criterion', 'distance');
+t = cluster(Z, 'maxclust', maxNeurons);
 
 figure(); hold on;
 imagesc(tempBinaryImage);
