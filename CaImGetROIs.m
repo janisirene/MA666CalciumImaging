@@ -1,4 +1,4 @@
-function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuronSize,maxNeurons)
+function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuronRadius,maxNeurons)
 %CaImGetROIs.m
 %   Take as input a .avi or .tif file and get out the individual ROIs that a simple
 %    algorithm has identified.
@@ -18,7 +18,7 @@ function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuron
 %       find object centroids
 %
 % INPUT: filename - .avi or .tif filename as a string
-%        estNeuronSize - size of ROI in pixels (defaults to 3)
+%        estNeuronRadius - radius of ROI in pixels (defaults to 3)
 %        maxNeurons - maximum number of neurons in field of view (defaults
 %         to 100) 
 % OUTPUT: finalBinaryImage - binary image of identified ROIs
@@ -41,14 +41,14 @@ function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuron
 %  3) remove non-stationary background 
 
 if nargin < 2
-    estNeuronSize = 5;
+    estNeuronRadius = 3;
     maxNeurons = 100;
 elseif nargin < 3
     maxNeurons = 100;
 end
 
-estNeuronSize = round(estNeuronSize);
-estNeuronArea = pi*estNeuronSize*estNeuronSize;
+estNeuronRadius = round(estNeuronRadius);
+estNeuronArea = pi*estNeuronRadius*estNeuronRadius;
 
 if ischar(filename) % data input is .avi
     [~, ~, ext] = fileparts(filename);
@@ -81,7 +81,7 @@ height = size(fullVideo,2);
 fltVideo = zeros(size(fullVideo));
 for ii=1:numFrames
     temp = fullVideo(:,:,ii);
-    fltVideo(:,:,ii) = wiener2(temp,[estNeuronSize,estNeuronSize]);
+    fltVideo(:,:,ii) = wiener2(temp,[estNeuronRadius,estNeuronRadius]);
 end
 
 %implay(uint8(fullVideo));
@@ -109,8 +109,8 @@ divisor = zeros(width,height);
 maxlag = 5;
 for ii=1:width
     for jj=1:height
-        rowVec = max(1, ii-estNeuronSize):min(width, ii+estNeuronSize);
-        colVec = max(1, jj-estNeuronSize):min(height, jj+estNeuronSize);
+        rowVec = max(1, ii-estNeuronRadius):min(width, ii+estNeuronRadius);
+        colVec = max(1, jj-estNeuronRadius):min(height, jj+estNeuronRadius);
 %         rowVec(rowVec<0) = 0;rowVec(rowVec>width) = 0;rowVec = rowVec(rowVec~=0);
 %         colVec(colVec<0) = 0;colVec(colVec<height) = 0;colVec = colVec(colVec~=0);
         for kk=rowVec
@@ -147,8 +147,8 @@ title('Histogram of Maximum Cross-Correlation Coefficients');
 legend('Histogram','Bonferroni-Corrected Threshold');
 
 % morphological opening and closing
-se = strel('disk',round(estNeuronSize/4));
-se2 = strel('disk',round(estNeuronSize));
+se = strel('disk',round(estNeuronRadius/4));
+se2 = strel('disk',round(estNeuronRadius));
 tempBinaryImage = imclose(imopen(binaryCrossCorr,se),se2);
 
 figure();imagesc(tempBinaryImage);colormap('bone');
@@ -231,7 +231,7 @@ pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
 % get cross correlations between pairs of pixels
 xcorrArray = zeros(length(indexArray), 1);
 for ii = 1:length(xcorrArray)
-    if pixelDist(ii) > estNeuronSize
+    if pixelDist(ii) > estNeuronRadius
         continue; 
     end
     
