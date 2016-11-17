@@ -3,7 +3,7 @@
 addpath(genpath('ca_source_extraction-master'));
 
 % VideoFile = 'demoMovie.tif';
-VideoFile = fullfile('Emily_Data', 'WWY_080116_3_071_2.tif');
+%VideoFile = fullfile('Emily_Data', 'WWY_080116_3_071_2.tif');
 VideoFile = fullfile('C:', 'Users', 'jintoy', 'Desktop', 'SLEEP01.tif');
 
 Y = readTifStack(VideoFile);
@@ -23,7 +23,7 @@ snr = max(Y(:)) / std(Y(:));
 [sz1, sz2, sz3] = size(Y);
 
 %% play Y as a movie
-m = Yw;
+m = Y;
 
 figure(100); clf;
 h = imagesc(m(:, :, 1));
@@ -62,7 +62,7 @@ fprintf('variance of end frame \t%1.3f\n', vart200);
 fprintf('variance of ns  pixel\t%1.3f\n', varns);
 fprintf('variance of ss  pixel\t%1.3f\n', varss);
 
-%%
+%% histogram of variance of each pixel
 varT = var(Y, [], 3);
 figure(31); clf;
 hist(varT(:), linspace(0, 2*10^5, 100));
@@ -77,7 +77,7 @@ for i = 1:size(f3, 3)/2
     temp = RadialProfile(ps(:, :, i), size(f3, 1)/2);
     radPS(:, size(f3, 3)/2 - i + 1) = temp;
 end
-%%
+%% plot the radial power spectrum
 figure(2); clf;
 axes('Position', [.3 .3 .6 .6]);
 pcolor(radPS');
@@ -97,7 +97,7 @@ plot(mean(radPS, 1), 1:size(radPS, 2));
 set(gca, 'XDir', 'reverse');
 ylim([1, size(radPS, 2)]);
 
-%% what happens if I whiten things?
+%% spectral whitening should emphasize edges in space and time
 f3w = f3 ./ abs(f3);
 Yw = real(ifftn(ifftshift(f3w)));
 
