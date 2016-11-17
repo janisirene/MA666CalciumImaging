@@ -144,7 +144,7 @@ figure();histogram(forHistogram);hold on;
 plot(ones(100,1).*threshold,linspace(0,max(N),100),'r','LineWidth',2);
 xlabel('Spatial Average Maximum Cross-Correlation');ylabel('Count');
 title('Histogram of Maximum Cross-Correlation Coefficients');
-legend('Histogram','Bonferroni-Corrected Threshold');
+legend('Histogram','Threshold');
 
 % morphological opening and closing
 se = strel('disk',round(estNeuronSize/4));
