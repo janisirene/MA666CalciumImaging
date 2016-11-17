@@ -17,7 +17,7 @@ function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuron
 %       the binary image, get the set of pixels comprising that object, and
 %       find object centroids
 %
-% INPUT: filename - .avi or .tif filename as a string
+% INPUT: filename - .avi or .tif filename as a string, or a 3d array
 %        estNeuronRadius - radius of ROI in pixels (defaults to 3)
 %        maxNeurons - maximum number of neurons in field of view (defaults
 %         to 100) 
@@ -231,7 +231,7 @@ pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
 % get cross correlations between pairs of pixels
 xcorrArray = zeros(length(indexArray), 1);
 for ii = 1:length(xcorrArray)
-    if pixelDist(ii) > estNeuronRadius
+    if pixelDist(ii) > 2*estNeuronRadius
         continue; 
     end
     
