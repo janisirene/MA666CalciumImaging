@@ -249,8 +249,8 @@ end
 % clustering works on dissimilarity
 dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer together
 Z = linkage(dissimilarity', 'complete');
-%t = cluster(Z, 'cutoff', cutoff, 'criterion', 'distance');
-t = cluster(Z, 'maxclust', maxNeurons);
+t = cluster(Z, 'cutoff', cutoff, 'criterion', 'distance');
+%t = cluster(Z, 'maxclust', maxNeurons);
 
 figure(); hold on;
 imagesc(tempBinaryImage);
