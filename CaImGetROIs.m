@@ -165,6 +165,7 @@ end
 
 
 cutoff = .5;
+%{
 % full version of cross-correlation adjacency matrix
 % get all possible cross-correlations between nearby pixels
 %  linear indexing to row-column indexing
@@ -209,7 +210,7 @@ for i = 1:max(t)
 end
 set(gca, 'YDir', 'reverse');
 title('hierarchical clusters (big version)');
-
+%}
 
 %%%% smaller version of adjacency matrix and hierarchical clustering
 % store values in a sparse matrix by making an index array and a value
