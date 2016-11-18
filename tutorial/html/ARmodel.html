@@ -6,7 +6,7 @@
    <!--
 This HTML was auto-generated from MATLAB code.
 To make changes, update the MATLAB code and republish this document.
-      --><title>Autoregressive Model for Calcium Dynamics</title><meta name="generator" content="MATLAB 9.0"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2016-11-15"><meta name="DC.source" content="ARmodel.m"><style type="text/css">
+      --><title>Autoregressive Model for Calcium Dynamics</title><meta name="generator" content="MATLAB 9.0"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2016-11-17"><meta name="DC.source" content="ARmodel.m"><style type="text/css">
 html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
 
 html { min-height:100%; margin-bottom:1px; }
@@ -79,23 +79,32 @@ spikes = zeros(dur/dt+1,1);
         spikes(t) = 1;
     <span class="keyword">end</span>
 <span class="keyword">end</span>
-</pre><h2>Applying the AR model to Action Potentials<a name="2"></a></h2><p>Before implementing the calculation, consider what each of the parameters in the model does. Look again at the AR model.</p><p><img src="ARmodel_eq06263262507588699212.png" alt="$c(t) = \sum_{j=1}^p\gamma_jc(t-j)+s(t)$"></p><p>Consider the following for <img src="ARmodel_eq12081968486337205601.png" alt="$p=1$">: * What does the parameter <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> represent? * How do changes to <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> affect the calcium signal? * What are reasonable values for this parameter?</p><p>Look at what happens when we vary <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$">:</p><pre class="codeinput">P = 1;
+</pre><h2>Applying the AR model to Action Potentials<a name="2"></a></h2><p>Before implementing the calculation, consider what each of the parameters in the model does. Look again at the AR model.</p><p><img src="ARmodel_eq06263262507588699212.png" alt="$c(t) = \sum_{j=1}^p\gamma_jc(t-j)+s(t)$"></p><p>Consider the following for <img src="ARmodel_eq12081968486337205601.png" alt="$p=1$">: * What does the parameter <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> represent? * How do changes to <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> affect the calcium signal? * What are reasonable values for this parameter?</p><p>Look at what happens when we vary <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$">:</p><pre class="codeinput">p = 1;
 Gamma = (.5:.05:.99);
 calcium = zeros(length(spikes),numel(Gamma));
 <span class="keyword">for</span> g = 1:numel(Gamma)
     gamma = Gamma(g);
     <span class="keyword">for</span> t = 2:length(spikes)
-        <span class="keyword">for</span> p = 1:P
-            calcium(t,g) = calcium(t) + gamma(p)*calcium(t-p)+spikes(t);
-        <span class="keyword">end</span>
+        calcium(t,g) = gamma(p)*calcium(t-p,g)+spikes(t);
     <span class="keyword">end</span>
-    plot((0:dt:dur),calcium(:,g)+2*g); hold <span class="string">on</span>
+    figure(1); plot((0:dt:dur),calcium(:,g)+2*g); hold <span class="string">on</span>
 <span class="keyword">end</span>
+title(<span class="string">'Calcium concentration for varying \gamma'</span>)
 hold <span class="string">off</span>;
 legend(num2str(Gamma'))
-</pre><img vspace="5" hspace="5" src="ARmodel_01.png" alt=""> <p>Can you tell what's happening? What if we overlay the plots of the calcium signal with the highest and lowest values of <img src="ARmodel_eq17096441642737911057.png" alt="$\gamma$">.</p><pre class="codeinput">plot((0:dt:dur),calcium(:,[1,g]))
+</pre><img vspace="5" hspace="5" src="ARmodel_01.png" alt=""> <p>Can you tell what's happening? What if we overlay the plots of the calcium signal with the highest and lowest values of <img src="ARmodel_eq17096441642737911057.png" alt="$\gamma$">.</p><pre class="codeinput">figure(2); plot((0:dt:dur),calcium(:,[1,g]))
 legend(num2str(Gamma([1,g])'))
-</pre><img vspace="5" hspace="5" src="ARmodel_02.png" alt=""> <p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2016a</a><br></p></div><!--
+title(<span class="string">'Comparison of traces with high and low \gamma'</span>)
+</pre><img vspace="5" hspace="5" src="ARmodel_02.png" alt=""> <p>Let's do one more comparison: are the peaks in the same place?</p><pre class="codeinput">[~,peaklocs] = arrayfun(@(i) findpeaks(calcium(:,i),[1;g]),<span class="keyword">...</span>
+    <span class="string">'uniformoutput'</span>,false);
+disp(cat(2,peaklocs{:}))
+</pre><pre class="codeoutput error">Error using arrayfun
+All of the input arguments must be of the same size and shape.
+Previous inputs had size 13 in dimension 2. Input #3 has size 1
+
+Error in ARmodel (line 53)
+[~,peaklocs] = arrayfun(@(i) findpeaks(calcium(:,i),[1;g]),...
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2016a</a><br></p></div><!--
 ##### SOURCE BEGIN #####
 %% Autoregressive Model for Calcium Dynamics
 % Explain what an autoregressive model is and how this applies
@@ -127,25 +136,30 @@ end
 % * What are reasonable values for this parameter?
 %%
 % Look at what happens when we vary $\gamma_1$:
-P = 1;
+p = 1;
 Gamma = (.5:.05:.99);
 calcium = zeros(length(spikes),numel(Gamma));
 for g = 1:numel(Gamma)
     gamma = Gamma(g);
     for t = 2:length(spikes)
-        for p = 1:P
-            calcium(t,g) = calcium(t) + gamma(p)*calcium(t-p)+spikes(t);
-        end
+        calcium(t,g) = gamma(p)*calcium(t-p,g)+spikes(t);
     end
-    plot((0:dt:dur),calcium(:,g)+2*g); hold on
+    figure(1); plot((0:dt:dur),calcium(:,g)+2*g); hold on
 end
+title('Calcium concentration for varying \gamma')
 hold off;
 legend(num2str(Gamma'))
 %%
 % Can you tell what's happening?
 % What if we overlay the plots of the calcium signal with the highest and
 % lowest values of $\gamma$.
-plot((0:dt:dur),calcium(:,[1,g]))
+figure(2); plot((0:dt:dur),calcium(:,[1,g]))
 legend(num2str(Gamma([1,g])'))
+title('Comparison of traces with high and low \gamma')
+%%
+% Let's do one more comparison: are the peaks in the same place?
+[~,peaklocs] = arrayfun(@(i) findpeaks(calcium(:,i),[1;g]),...
+    'uniformoutput',false);
+disp(cat(2,peaklocs{:}))
 ##### SOURCE END #####
 --></body></html>

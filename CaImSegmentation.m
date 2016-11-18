@@ -1,4 +1,4 @@
-function [SpatMap,CaSignal,Spikes,width,height,Cn] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize)
+function [SpatMap,CaSignal,Spikes,width,height,Cn,P,options] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize)
 %CaImSegmentation.m
 %   See Pnevmatikakis & Paninski, 2014 & 2016, for their matrix factorization
 %     algorithm to automate image segmentation for calcium imaging data.

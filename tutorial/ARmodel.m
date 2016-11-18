@@ -28,23 +28,28 @@ end
 % * What are reasonable values for this parameter?
 %%
 % Look at what happens when we vary $\gamma_1$:
-P = 1;
+p = 1;
 Gamma = (.5:.05:.99);
 calcium = zeros(length(spikes),numel(Gamma));
 for g = 1:numel(Gamma)
     gamma = Gamma(g);
     for t = 2:length(spikes)
-        for p = 1:P
-            calcium(t,g) = calcium(t) + gamma(p)*calcium(t-p)+spikes(t);
-        end
+        calcium(t,g) = gamma(p)*calcium(t-p,g)+spikes(t);
     end
-    plot((0:dt:dur),calcium(:,g)+2*g); hold on
+    figure(1); plot((0:dt:dur),calcium(:,g)+2*g); hold on
 end
+title('Calcium concentration for varying \gamma')
 hold off;
 legend(num2str(Gamma'))
 %%
 % Can you tell what's happening?
 % What if we overlay the plots of the calcium signal with the highest and
 % lowest values of $\gamma$.
-plot((0:dt:dur),calcium(:,[1,g]))
+figure(2); plot((0:dt:dur),calcium(:,[1,g]))
 legend(num2str(Gamma([1,g])'))
+title('Comparison of traces with high and low \gamma')
+%%
+% Let's do one more comparison: are the peaks in the same place?
+[~,peaklocs] = arrayfun(@(i) findpeaks(calcium(:,i),[1;g]),...
+    'uniformoutput',false);
+disp(cat(2,peaklocs{:}))
