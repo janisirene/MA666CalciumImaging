@@ -29,7 +29,7 @@ function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuron
 % 
 %Created: 2016/11/08
 % Byron Price
-%Updated: 2016/11/15 
+%Updated: 2016/11/18 
 %  By: Byron Price & Janis Intoy
 %
 % TO DO: instead of xcorr do cross correlatin calcs in fourier domain
@@ -118,9 +118,10 @@ for ii=1:width
 %         colVec(colVec<0) = 0;colVec(colVec<height) = 0;colVec = colVec(colVec~=0);
         for kk=rowVec
             for ll=colVec
-                summedCrossCorr(kk,ll) = summedCrossCorr(kk,ll)+...
-                    max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(kk,ll,:)),maxlag,'coeff'));
-                divisor(kk,ll) = divisor(kk,ll)+1;
+                temp = myXCORR(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(kk,ll,:)),maxlag);
+                summedCrossCorr(ii,jj) = summedCrossCorr(ii,jj)+...
+                    max(temp(temp~=1));
+                divisor(ii,jj) = divisor(kk,ll)+1;
             end
         end
     end
@@ -243,8 +244,8 @@ for ii = 1:length(xcorrArray)
     jdxr = row(ii, 2);
     jdxc = col(ii, 2);
     
-    xcorrArray(ii) = max(xcorr(squeeze(fltVideo(idxr, idxc, :)),...
-        squeeze(fltVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
+    xcorrArray(ii) = max(myXCORR(squeeze(fltVideo(idxr, idxc, :)),...
+        squeeze(fltVideo(jdxr, jdxc, :)), maxlag));
 end
 % clustering works on dissimilarity
 dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer together
@@ -270,4 +271,24 @@ figure(); dendrogram(Z, 0, 'colorthreshold', cutoff);
 % bwconncomp finds groups in the binary image
 Components = bwconncomp(tempBinaryImage);
 Centroids = regionprops(Components,'Centroid');
+end
+
+function [crossCorr] = myXCORR(Signal1,Signal2,numLags)
+%myXCORR.m
+% 
+
+autoCorr = zeros(2,1);
+
+Signal1 = Signal1-mean(Signal1);
+Signal2 = Signal2-mean(Signal2);
+
+autoCorr(1) = sum(Signal1.*Signal1);
+autoCorr(2) = sum(Signal2.*Signal2);
+crossCorr = zeros(numLags+1,1);
+
+for ii=0:numLags
+    crossCorr(ii+1) = sum(Signal1(ii+1:end).*Signal2(1:end-ii));
+end
+
+crossCorr = crossCorr./sqrt(autoCorr(1)*autoCorr(2));
 end
