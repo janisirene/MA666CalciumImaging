@@ -3,8 +3,8 @@
 addpath(genpath('ca_source_extraction-master'));
 
 % VideoFile = 'demoMovie.tif';
-%VideoFile = fullfile('Emily_Data', 'WWY_080116_3_071_2.tif');
-VideoFile = fullfile('C:', 'Users', 'jintoy', 'Desktop', 'SLEEP01.tif');
+VideoFile = fullfile('Emily_Data', 'WWY_080116_3_071_2.tif');
+%VideoFile = fullfile('C:', 'Users', 'jintoy', 'Desktop', 'SLEEP01.tif');
 
 Y = readTifStack(VideoFile);
 Y = double(Y);
@@ -21,6 +21,14 @@ end
 snr = max(Y(:)) / std(Y(:));
 
 [sz1, sz2, sz3] = size(Y);
+
+%% run Emily's data through our algorithm
+% Emily's data shifts around frame 200, I'll cut if off before then
+Ycut = Y(:, :, 1:175);
+tic; 
+[finalBinaryImage, Components, Centroids, clusterData] = ...
+    CaImGetROIs(Ycut, 5, 40);
+toc;
 
 %% play Y as a movie
 m = Y;

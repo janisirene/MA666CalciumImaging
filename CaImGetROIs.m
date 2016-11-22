@@ -108,6 +108,7 @@ end
 % title('Maximum Autocorrelation Image');
 
 % look for components to either merge or separate with cross-correlation
+fprintf('%s: getting summed cross correlations\n', datestr(now));
 summedCrossCorr = zeros(width,height);
 divisor = zeros(width,height);
 maxlag = 5;
@@ -220,6 +221,7 @@ title('hierarchical clusters (big version)');
 %%%% smaller version of adjacency matrix and hierarchical clustering
 % store values in a sparse matrix by making an index array and a value
 % array
+fprintf('%s: getting dissimilarity matrix\n', datestr(now));
 usePixels = find(tempBinaryImage); % only use pixels deemed signal
 idx = find(tril(true(length(usePixels)), -1));
 [tempr, tempc] = ind2sub([length(usePixels), length(usePixels)], idx);
