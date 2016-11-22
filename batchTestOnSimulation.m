@@ -16,6 +16,7 @@ params = struct('size', 30,...
     'saveMovie', '',...
     'estNeuronRadius', 5);
 
+%{
 out(nTrials, length(nROIs), length(snrs)) = struct('hitPixels',[],...
     'faPixels', [], 'dprimePixels', [], 'hitSignal', [],...
     'faSignal', [], 'dprimeSignal', [], 'nDetectedPerTrueROI', [],...
@@ -40,6 +41,8 @@ for i = 1:nTrials
     end
 end
 save('out.mat', 'out', 'skipped', 'snrs', 'nROIs', 'nTrials');
+    %}
+load('out.mat');
 
 %% 
 clear combo;
@@ -120,3 +123,33 @@ hcb = colorbar;
 title(hcb, 'SNR');
 set(hcb, 'Ticks', snrs, 'TickLabels', cellfun(@num2str, num2cell(snrs), ...
     'UniformOutput', false));
+
+%% number detected ROI with matching true ROI
+figure(3); clf; hold on;
+for r = 1:length(nROIs)
+    temp = vertcat(combo(r, :).nDetectedPerTrueROI);
+    plot(snrs, temp(:, 1), ['-', sym(r)],...
+        'markersize', 10, 'linewidth', 2);
+end
+xlabel('SNR');
+ylabel('# detected matched to true ROI');
+legend(cellfun(@(x) [num2str(x), ' ROI'], num2cell(nROIs),...
+    'UniformOutput', false), 'Location', 'northeast');
+set(gca, 'XTick', snrs, 'XTickLabels', cellfun(@num2str, num2cell(snrs),...
+    'UniformOutput', false), 'XScale', 'log');
+title('ratio of detected ROI to matched true ROI');
+
+%% ROI hit rate vs SNR
+figure(4); clf; hold on;
+for r = 1:length(nROIs)
+    temp = vertcat(combo(r, :).hitROI);
+    plot(snrs, temp(:, 1), ['-', sym(r)],...
+        'markersize', 10, 'linewidth', 2);
+end
+xlabel('SNR');
+ylabel('ROI hit rate');
+legend(cellfun(@(x) [num2str(x), ' ROI'], num2cell(nROIs),...
+    'UniformOutput', false), 'Location', 'southeast');
+set(gca, 'XTick', snrs, 'XTickLabels', cellfun(@num2str, num2cell(snrs),...
+    'UniformOutput', false), 'XScale', 'log');
+title('ROI hit rate');
