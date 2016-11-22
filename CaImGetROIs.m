@@ -169,7 +169,7 @@ end
 % figure();imagesc(filter2(h,summedCrossCorr,'same'));
 
 
-cutoff = .6;
+cutoff = .4;
 %{
 % full version of cross-correlation adjacency matrix
 % get all possible cross-correlations between nearby pixels
