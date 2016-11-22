@@ -1,4 +1,4 @@
-function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuronRadius,maxNeurons)
+function [tempBinaryImage,Components,Centroids, clusterData] = CaImGetROIs(filename,estNeuronRadius,maxNeurons)
 %CaImGetROIs.m
 %   Take as input a .avi or .tif file and get out the individual ROIs that a simple
 %    algorithm has identified.
@@ -26,6 +26,7 @@ function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuron
 %          ROIs (how many, what pixels do they comprise)
 %         Centroids - a structure with each ROI's centroid
 %         several figures
+%         clusterData - results of hierarchical clustering
 % 
 %Created: 2016/11/08
 % Byron Price
@@ -168,7 +169,7 @@ end
 % figure();imagesc(filter2(h,summedCrossCorr,'same'));
 
 
-cutoff = .2;
+cutoff = .6;
 %{
 % full version of cross-correlation adjacency matrix
 % get all possible cross-correlations between nearby pixels
@@ -235,7 +236,7 @@ pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
 % get cross correlations between pairs of pixels
 xcorrArray = zeros(length(indexArray), 1);
 for ii = 1:length(xcorrArray)
-    if pixelDist(ii) > 2*estNeuronRadius
+    if pixelDist(ii) > 3*estNeuronRadius
         continue; 
     end
     
@@ -252,6 +253,7 @@ dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer together
 Z = linkage(dissimilarity', 'complete');
 t = cluster(Z, 'cutoff', cutoff, 'criterion', 'distance');
 %t = cluster(Z, 'maxclust', maxNeurons);
+clusterData = struct('signalPixels', usePixels, 'class', t, 'dissimilarity', dissimilarity);
 
 figure(); hold on;
 imagesc(tempBinaryImage);
@@ -259,12 +261,15 @@ colormap gray;
 for i = 1:max(t)
     indexArray = (t == i);
     [r, c] = ind2sub([width, height], usePixels(indexArray));
-%     K = boundary(c, r);
-%     plot(c(K), r(K), 'linewidth', 2);
-   plot(c, r, '.', 'markersize', 15);
+    K = boundary(c, r);
+    hp = plot(c(K), r(K), 'linewidth', 2);
+    if ~isempty(K)
+        plot(c, r, '.', 'markersize', 15, 'Color', get(hp, 'Color'));
+    end
 end
 set(gca, 'YDir', 'reverse');
 title('hierarchical clusters (small version)');
+axis image;
 
 figure(); dendrogram(Z, 0, 'colorthreshold', cutoff);
 
