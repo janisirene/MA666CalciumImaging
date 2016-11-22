@@ -16,6 +16,8 @@ if ~exist('params', 'var')
     svMovie = ''; % filename to save movie as .tif
     
     estNeuronRadius = 5;
+    
+
 else
     sz = params.size;
     dur = params.duration;
@@ -29,7 +31,6 @@ end
 [ROI, full] = simulateCalcImg(sz, dur, nROI, snr, svMovie);
 
 %% automatic segmenation algorithm
-
 [finalBinaryImage,Components,Centroids, clusterData] = CaImGetROIs(full, estNeuronRadius, nROI);
 
 %% truth map
