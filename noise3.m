@@ -24,5 +24,5 @@ Fpw = 1 ./ (R.^pw); % 1/frequency^pw (add 1 so that 0 is not included)
 im2 = im1 .* Fpw; % magnitudes
 
 n = real(ifftn(ifftshift(im2)));
-n = n ./ sqrt(sum(n(:).^2)); % set power equal to 1 for scaling later
+n = n ./ std(n(:)); % set power equal to 1 for scaling later
 end

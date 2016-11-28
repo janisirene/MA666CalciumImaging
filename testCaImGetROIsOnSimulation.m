@@ -13,6 +13,7 @@ if ~exist('params', 'var')
     dur = 10; % seconds sampled at 30Hz
     nROI = 5; % number of cells
     snr = 30; % signal to noise ratio
+    noisePW = 0; % noise magnitude spectrum (1/freq^noisePW) (0 = white)
     svMovie = ''; % filename to save movie as .tif
     
     estNeuronRadius = 5;
@@ -23,12 +24,13 @@ else
     dur = params.duration;
     nROI = params.nROI;
     snr = params.snr;
+    noisePW = params.noisePW;
     svMovie = params.saveMovie;
     estNeuronRadius = params.estNeuronRadius;
 end
 
 %% simulate data
-[ROI, full] = simulateCalcImg(sz, dur, nROI, snr, svMovie);
+[ROI, full] = simulateCalcImg(sz, dur, nROI, snr, noisePW, svMovie);
 
 %% automatic segmenation algorithm
 [finalBinaryImage,Components,Centroids, clusterData] = CaImGetROIs(full, estNeuronRadius, nROI);
