@@ -3,7 +3,7 @@ clear all;
 
 snrs = [3, 5, 10, 30, 50];
 nROIs = 1:7;
-nTrials = 50;
+nTrials = 17;
 
 % snrs = [3, 5];
 % nROIs = 1:2;
@@ -13,10 +13,11 @@ params = struct('size', 30,...
     'duration', 10,...
     'nROI', [],...
     'snr', [],...
+    'noisePW', 2,...
     'saveMovie', '',...
     'estNeuronRadius', 5);
 
-%{
+%
 out(nTrials, length(nROIs), length(snrs)) = struct('hitPixels',[],...
     'faPixels', [], 'dprimePixels', [], 'hitSignal', [],...
     'faSignal', [], 'dprimeSignal', [], 'nDetectedPerTrueROI', [],...
@@ -40,9 +41,9 @@ for i = 1:nTrials
         end
     end
 end
-save('out.mat', 'out', 'skipped', 'snrs', 'nROIs', 'nTrials');
+save('out_2.mat', 'out', 'skipped', 'snrs', 'nROIs', 'nTrials');
     %}
-load('out.mat');
+%load('out_2.mat');
 
 %% 
 clear combo;
