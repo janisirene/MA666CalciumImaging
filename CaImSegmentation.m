@@ -1,4 +1,4 @@
-function [SpatMap,CaSignal,Spikes,width,height,Cn,P,options] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize)
+function [SpatMap,CaSignal,Spikes,width,height,Cn,P,options] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize,options)
 %CaImSegmentation.m
 %   See Pnevmatikakis & Paninski, 2014 & 2016, for their matrix factorization
 %     algorithm to automate image segmentation for calcium imaging data.
@@ -83,7 +83,7 @@ end
 addpath(genpath('utilities'));
              
 Y = Y - min(Y(:)); 
-if ~isa(Y,'double');    Y = double(Y);  end         % convert to single
+if ~isa(Y,'double');    Y = double(Y);  end         % convert to double
 
 [d1,d2,T] = size(Y);                                % dimensions of dataset
 d = d1*d2;                                          % total number of pixels
@@ -95,24 +95,30 @@ K = maxNeurons;                        % number of components to be found - user
 tau = estNeuronSize;                   % std of gaussian kernel (size of neuron) - 4 is a good start 
 p = 2;                                % order of autoregressive system (p = 0 no dynamics, p=1 just decay, p = 2, both rise and decay)
 merge_thr = 0.8;                       % merging threshold
-tsub = ceil(size(Y,3) / 5000);
+% tsub = ceil(size(Y,3) / 5000);
+savemem = size(Y,3) > 3000;
 
-options = CNMFSetParms(...                      
-    'd1',d1,'d2',d2,...                         % dimensions of datasets
-    'search_method','dilate','dist',8,...       % search locations when updating spatial components
-    'deconv_method','constrained_foopsi',...    % activity deconvolution method
-    'ssub', 1,...                            % spatial downsampling factor (default: 1)
-    'tsub', tsub,...                            % temporal downsampling factor (default: 1)    'temporal_iter',2,...                       % number of block-coordinate descent steps 
-    'fudge_factor',0.98,...                     % bias correction for AR coefficients
-    'merge_thr',merge_thr,...                    % merging threshold
-    'maxthr',0.1,...                           % threshold of max value below which values are discarded (default: 0.1)
-    'medw',[3,3],...                % size of median filter (default: [3,3])
-    'gSig',tau...
-    );
-% Data pre-processing
+if ~exist('options','var') || isempty(options)
+    options = CNMFSetParms(...                      
+        'd1',d1,'d2',d2,...                         % dimensions of datasets
+        'search_method','dilate','dist',8,...       % search locations when updating spatial components
+        'deconv_method','constrained_foopsi',...    % activity deconvolution method
+        'ssub', 1,...                            % spatial downsampling factor (default: 1)
+        'tsub', 1,...                            % temporal downsampling factor (default: 1)    
+        'fudge_factor',0.98,...                     % bias correction for AR coefficients
+        'merge_thr',merge_thr,...                    % merging threshold
+        'maxthr',0.1,...                           % threshold of max value below which values are discarded (default: 0.1)
+        'medw',[3,3],...                % size of median filter (default: [3,3])
+        'save_memory', savemem,...      % process data sequentially to save memory (default: 0)
+        'gSig',tau...
+        );
+    % Data pre-processing
+end
 
 [P,Y] = preprocess_data(Y,p);
-
+if exist('ROI_list','var')
+    P.ROI_list = ROI_list;
+end
 
 % fast initialization of spatial components using greedyROI and HALS
 
