@@ -1,4 +1,4 @@
-function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuronRadius,maxNeurons)
+function [tempBinaryImage,Components,Centroids, clusterData] = CaImGetROIs(filename,estNeuronRadius,maxNeurons)
 %CaImGetROIs.m
 %   Take as input a .avi or .tif file and get out the individual ROIs that a simple
 %    algorithm has identified.
@@ -26,10 +26,11 @@ function [tempBinaryImage,Components,Centroids] = CaImGetROIs(filename,estNeuron
 %          ROIs (how many, what pixels do they comprise)
 %         Centroids - a structure with each ROI's centroid
 %         several figures
+%         clusterData - results of hierarchical clustering
 % 
 %Created: 2016/11/08
 % Byron Price
-%Updated: 2016/11/15 
+%Updated: 2016/11/18 
 %  By: Byron Price & Janis Intoy
 %
 % TO DO: instead of xcorr do cross correlatin calcs in fourier domain
@@ -107,6 +108,7 @@ end
 % title('Maximum Autocorrelation Image');
 
 % look for components to either merge or separate with cross-correlation
+fprintf('%s: getting summed cross correlations\n', datestr(now));
 summedCrossCorr = zeros(width,height);
 divisor = zeros(width,height);
 maxlag = 5;
@@ -118,9 +120,10 @@ for ii=1:width
 %         colVec(colVec<0) = 0;colVec(colVec<height) = 0;colVec = colVec(colVec~=0);
         for kk=rowVec
             for ll=colVec
-                summedCrossCorr(kk,ll) = summedCrossCorr(kk,ll)+...
-                    max(xcorr(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(kk,ll,:)),maxlag,'coeff'));
-                divisor(kk,ll) = divisor(kk,ll)+1;
+                temp = myXCORR(squeeze(fltVideo(ii,jj,:)),squeeze(fltVideo(kk,ll,:)),maxlag);
+                summedCrossCorr(ii,jj) = summedCrossCorr(ii,jj)+...
+                    max(temp(temp~=1));
+                divisor(ii,jj) = divisor(kk,ll)+1;
             end
         end
     end
@@ -167,7 +170,7 @@ end
 % figure();imagesc(filter2(h,summedCrossCorr,'same'));
 
 
-cutoff = .2;
+cutoff = .4;
 %{
 % full version of cross-correlation adjacency matrix
 % get all possible cross-correlations between nearby pixels
@@ -218,6 +221,7 @@ title('hierarchical clusters (big version)');
 %%%% smaller version of adjacency matrix and hierarchical clustering
 % store values in a sparse matrix by making an index array and a value
 % array
+fprintf('%s: getting dissimilarity matrix\n', datestr(now));
 usePixels = find(tempBinaryImage); % only use pixels deemed signal
 idx = find(tril(true(length(usePixels)), -1));
 [tempr, tempc] = ind2sub([length(usePixels), length(usePixels)], idx);
@@ -234,7 +238,7 @@ pixelDist = sqrt((col(:, 1) - col(:, 2)).^2 + (row(:, 1) - row(:, 2)).^2);
 % get cross correlations between pairs of pixels
 xcorrArray = zeros(length(indexArray), 1);
 for ii = 1:length(xcorrArray)
-    if pixelDist(ii) > 2*estNeuronRadius
+    if pixelDist(ii) > 3*estNeuronRadius
         continue; 
     end
     
@@ -243,14 +247,15 @@ for ii = 1:length(xcorrArray)
     jdxr = row(ii, 2);
     jdxc = col(ii, 2);
     
-    xcorrArray(ii) = max(xcorr(squeeze(fltVideo(idxr, idxc, :)),...
-        squeeze(fltVideo(jdxr, jdxc, :)), maxlag, 'coeff'));
+    xcorrArray(ii) = max(myXCORR(squeeze(fltVideo(idxr, idxc, :)),...
+        squeeze(fltVideo(jdxr, jdxc, :)), maxlag));
 end
 % clustering works on dissimilarity
 dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer together
 Z = linkage(dissimilarity', 'complete');
 t = cluster(Z, 'cutoff', cutoff, 'criterion', 'distance');
 %t = cluster(Z, 'maxclust', maxNeurons);
+clusterData = struct('signalPixels', usePixels, 'class', t, 'dissimilarity', dissimilarity);
 
 figure(); hold on;
 imagesc(tempBinaryImage);
@@ -258,16 +263,39 @@ colormap gray;
 for i = 1:max(t)
     indexArray = (t == i);
     [r, c] = ind2sub([width, height], usePixels(indexArray));
-%     K = boundary(c, r);
-%     plot(c(K), r(K), 'linewidth', 2);
-   plot(c, r, '.', 'markersize', 15);
+    K = boundary(c, r);
+    hp = plot(c(K), r(K), 'linewidth', 2);
+    if ~isempty(K)
+        plot(c, r, '.', 'markersize', 15, 'Color', get(hp, 'Color'));
+    end
 end
 set(gca, 'YDir', 'reverse');
 title('hierarchical clusters (small version)');
+axis image;
 
 figure(); dendrogram(Z, 0, 'colorthreshold', cutoff);
 
 % bwconncomp finds groups in the binary image
 Components = bwconncomp(tempBinaryImage);
 Centroids = regionprops(Components,'Centroid');
+end
+
+function [crossCorr] = myXCORR(Signal1,Signal2,numLags)
+%myXCORR.m
+% 
+
+autoCorr = zeros(2,1);
+
+Signal1 = Signal1-mean(Signal1);
+Signal2 = Signal2-mean(Signal2);
+
+autoCorr(1) = sum(Signal1.*Signal1);
+autoCorr(2) = sum(Signal2.*Signal2);
+crossCorr = zeros(numLags+1,1);
+
+for ii=0:numLags
+    crossCorr(ii+1) = sum(Signal1(ii+1:end).*Signal2(1:end-ii));
+end
+
+crossCorr = crossCorr./sqrt(autoCorr(1)*autoCorr(2));
 end

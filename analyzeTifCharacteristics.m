@@ -3,8 +3,9 @@
 addpath(genpath('ca_source_extraction-master'));
 
 % VideoFile = 'demoMovie.tif';
-%VideoFile = fullfile('Emily_Data', 'WWY_080116_3_071_2.tif');
-VideoFile = fullfile('C:', 'Users', 'jintoy', 'Desktop', 'SLEEP01.tif');
+VideoFile = fullfile('Emily_Data', 'WWY_080116_3_071_2.tif');
+%VideoFile = fullfile('C:', 'Users', 'jintoy', 'Desktop', 'SLEEP01.tif');
+VideoFile = 'example_n3_2.tif';
 
 Y = readTifStack(VideoFile);
 Y = double(Y);
@@ -22,6 +23,16 @@ snr = max(Y(:)) / std(Y(:));
 
 [sz1, sz2, sz3] = size(Y);
 
+%% run Emily's data through our algorithm
+% Emily's data shifts around frame 200, I'll cut if off before then
+Ycut = Y(1:100, 1:100, 1:175);
+Ycut = Ycut - min(Ycut(:));
+Ycut = Ycut / max(Ycut(:));
+tic; 
+[finalBinaryImage, Components, Centroids, clusterData] = ...
+    CaImGetROIs(Ycut, 5, 40);
+toc;
+
 %% play Y as a movie
 m = Y;
 
@@ -29,6 +40,7 @@ figure(100); clf;
 h = imagesc(m(:, :, 1));
 cmax = max(m(:));
 caxis([0, cmax]);
+axis image;
 % xlim([1, 100]);
 % ylim([1, 100]);
 
@@ -39,20 +51,21 @@ for i = 1:size(m, 3)
 end
 
 %% portion of Y that looks like only noise
-figure(30); clf; hold on;
+m = Yw;
+figure(31); clf; hold on;
 % Emily Data
 % plot(squeeze(Y(25, 275, :)));
 % plot(squeeze(Y(434, 146, :)));
 % Sleep 1
-plot(squeeze(Y(241, 168, :)));
-plot(squeeze(Y(182, 226, :)));
+plot(squeeze(m(180, 145, :)));
+plot(squeeze(m(180, 144, :)));
 
-ns = squeeze(Y(241, 168, :)); % temporal signal from a noise pixel
-ss = squeeze(Y(182, 226, :)); % temporal signal from a cell pixel
+ns = squeeze(m(250, 199, :)); % temporal signal from a noise pixel
+ss = squeeze(m(182, 226, :)); % temporal signal from a cell pixel
 
-varAll = var(Y(:));
-vart1 = var(tocol(Y(:, :, 1)));
-vart200 = var(tocol(Y(:, :, 200)));
+varAll = var(m(:));
+vart1 = var(tocol(m(:, :, 1)));
+vart200 = var(tocol(m(:, :, 200)));
 varns = var(ns);
 varss = var(ss);
 
@@ -123,7 +136,7 @@ for i = 1:size(Y, 3)
     set(h2, 'CData', Yw(:, :, i));
     set(ax2, 'CLim', [cmin2, cmax2]); 
     
-    mov(i) = getframe;
+    mov(i) = getframe(gcf);
 end
 
 v = VideoWriter('SLEEP1_whitened.avi');
