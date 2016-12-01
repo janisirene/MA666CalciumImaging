@@ -1,4 +1,4 @@
-function [SpatMap,CaSignal,Spikes,width,height,Cn,P,options] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize,options)
+function [SpatMap,CaSignal,Spikes,width,height,Cn,P,options] = CaImSegmentation(VideoFileName,maxNeurons,estNeuronSize,options,refine_components)
 %CaImSegmentation.m
 %   See Pnevmatikakis & Paninski, 2014 & 2016, for their matrix factorization
 %     algorithm to automate image segmentation for calcium imaging data.
@@ -123,13 +123,14 @@ end
 % fast initialization of spatial components using greedyROI and HALS
 
 [Ain,Cin,bin,fin,center] = initialize_components(Y,K,tau,options,P);  % initialize
-refine_components = false;
-if refine_components
-    [Ain,Cin,center] = manually_refine_components(Y,Ain,Cin,center,Cn,tau,options);
-end
+
 % display centers of found components
 Cn =  correlation_image(Y); %reshape(P.sn,d1,d2);  %max(Y,[],3); %std(Y,[],3); % image statistic (only for display purposes)
-    
+if ~exist('refine_components','var')||isempty(refine_components); refine_components = false; end
+if refine_components
+    [Ain,Cin,~] = manually_refine_components(Y,Ain,Cin,center,Cn,tau,options);
+end
+
 % update spatial components
 Yr = reshape(Y,d,T);
 %clear Y;
@@ -164,7 +165,7 @@ Spikes = S_or(1:end-1,:);
 
 %contour_threshold = 0.95;                       % amount of energy used for each component to construct contour plot
 figure;
-[~,~] = plot_contours(A_or,Cn,options,1); % contour plot of spatial footprints
+[~,~] = plot_contours(A_or,Cn,options,0); % contour plot of spatial footprints
 title('Spatiotemporal Correlation Image');
 
 % for noiseless video of calcium dynamics
