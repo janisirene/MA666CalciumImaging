@@ -1,4 +1,6 @@
 % batchTest script
+% as of Dec 1 this one is outdated - moving batch processing to scc so this
+% file might be reappropriate to aggregate the data
 clear all;
 
 snrs = [3, 5, 10, 30, 50];
@@ -43,7 +45,7 @@ for i = 1:nTrials
 end
 save('out_2.mat', 'out', 'skipped', 'snrs', 'nROIs', 'nTrials');
     %}
-%load('out_2.mat');
+load('out_2.mat');
 
 %% 
 clear combo;

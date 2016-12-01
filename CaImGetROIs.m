@@ -1,4 +1,4 @@
-function [tempBinaryImage,Components,Centroids, clusterData] = CaImGetROIs(filename,estNeuronRadius,maxNeurons)
+function [tempBinaryImage,Components,Centroids, clusterData, detectedROI] = CaImGetROIs(filename,estNeuronRadius,maxNeurons)
 %CaImGetROIs.m
 %   Take as input a .avi or .tif file and get out the individual ROIs that a simple
 %    algorithm has identified.
@@ -170,7 +170,7 @@ end
 % figure();imagesc(filter2(h,summedCrossCorr,'same'));
 
 
-cutoff = .4;
+cutoff = .1:.1:1;
 %{
 % full version of cross-correlation adjacency matrix
 % get all possible cross-correlations between nearby pixels
@@ -253,10 +253,18 @@ end
 % clustering works on dissimilarity
 dissimilarity = 1 - xcorrArray; % for linkage, smaller means closer together
 Z = linkage(dissimilarity', 'complete');
-t = cluster(Z, 'cutoff', cutoff, 'criterion', 'distance');
-%t = cluster(Z, 'maxclust', maxNeurons);
-clusterData = struct('signalPixels', usePixels, 'class', t, 'dissimilarity', dissimilarity);
 
+T = nan(length(usePixels), length(cutoff));
+for i = 1:length(cutoff)
+    t = cluster(Z, 'cutoff', cutoff(i), 'criterion', 'distance');
+    T(:, i) = t;
+end
+
+clusterData = struct('signalPixels', usePixels, ...
+    'cutoffs', cutoff,...
+    'class', T, ...
+    'dissimilarity', dissimilarity);
+%{
 figure(); hold on;
 imagesc(tempBinaryImage);
 colormap gray;
@@ -274,6 +282,23 @@ title('hierarchical clusters (small version)');
 axis image;
 
 figure(); dendrogram(Z, 0, 'colorthreshold', cutoff);
+%}
+detectedROI = cell(length(cutoff), 1);
+
+for t = 1:length(cutoff)
+    tempROI = struct('indices', [], 'trueROI', []);
+    cnt = 1;
+    for i = 1:max(clusterData.class(:, t))
+        idx = clusterData.class(:, t) == i;
+        if sum(idx) > 2*estNeuronRadius % threshold the size of an ROI
+            sIdx = clusterData.signalPixels(idx);
+            
+            tempROI(cnt).indices = sIdx;
+            cnt = cnt + 1;
+        end
+    end
+    detectedROI{t} = tempROI;
+end
 
 % bwconncomp finds groups in the binary image
 Components = bwconncomp(tempBinaryImage);
