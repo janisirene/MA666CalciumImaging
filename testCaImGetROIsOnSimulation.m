@@ -1,4 +1,4 @@
-function out = testCaImGetROIsOnSimulation(params)
+function [out, truthMap, ROI] = testCaImGetROIsOnSimulation(params)
 % TO DO:
 %   1. systematically test more snr
 %   2. vary threshold in segmentation algorithm to generate full ROC curve
@@ -101,7 +101,9 @@ for t = 1:length(detectedROI)
         'faSignal', faSignal,...
         'dprimeSignal', dprimeSignal,...
         'nDetectedPerTrueROI', nDetectedPerTrue,...
-        'hitROI', hitROI);
+        'hitROI', hitROI, ...
+        'finalBinaryImage', finalBinaryImage,...
+        'detectedMap', detectedMap);
     out{t} = tout;
 end
 

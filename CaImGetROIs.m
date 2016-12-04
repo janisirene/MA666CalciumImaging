@@ -139,9 +139,13 @@ numComparisons = width*height;
 % q = norminv(alpha,0,1);
 % threshold = q/sqrt(numFrames); 
 
-totalNeuronArea = maxNeurons*estNeuronArea;
-threshold = quantile(summedCrossCorr(:),1-totalNeuronArea/numComparisons);
-binaryCrossCorr = summedCrossCorr > threshold;
+temp = summedCrossCorr(:);
+GMModel = fitgmdist(temp,2);
+mu = GMModel.mu;Sigma = GMModel.Sigma;
+[~,minInd] = min(mu);
+ 
+threshold = mu(minInd)+3*sqrt(Sigma(minInd));
+binaryCrossCorr  = summedCrossCorr > threshold;
 
 forHistogram = summedCrossCorr(:);
 forHistogram = forHistogram(forHistogram ~= 0);

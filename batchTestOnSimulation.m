@@ -1,158 +1,139 @@
 % batchTest script
-% as of Dec 1 this one is outdated - moving batch processing to scc so this
-% file might be reappropriate to aggregate the data
+% aggregate data from individual test trials
 clear all;
+
+ptToData = 'results_1858698_hierarchical';
+dr = dir(fullfile(ptToData, '*.mat'));
 
 snrs = [3, 5, 10, 30, 50];
 nROIs = 1:7;
-nTrials = 17;
+noisePW = [0, 2];
 
-% snrs = [3, 5];
-% nROIs = 1:2;
-% nTrials = 2;
+cutoff = .1:.1:1;
+maxTrials = 50;
 
-params = struct('size', 30,...
-    'duration', 10,...
-    'nROI', [],...
-    'snr', [],...
-    'noisePW', 2,...
-    'saveMovie', '',...
-    'estNeuronRadius', 5);
-
-%
-out(nTrials, length(nROIs), length(snrs)) = struct('hitPixels',[],...
-    'faPixels', [], 'dprimePixels', [], 'hitSignal', [],...
-    'faSignal', [], 'dprimeSignal', [], 'nDetectedPerTrueROI', [],...
-    'hitROI', []);
-skipped = [0, 0, 0];
-ski = 0;
-for i = 1:nTrials
-    fprintf('%i of %i trials\n', i, nTrials);
-    for r = 1:length(nROIs)
-        params.nROI = nROIs(r);
-        for s = 1:length(snrs)
-            params.snr = snrs(s);
-            try
-                rng(i);
-                out(i, r, s) = testCaImGetROIsOnSimulation(params);
-            catch err
-                ski = ski + 1;
-                skipped(ski, :) = [i, r, s];
-            end
-            close all;
-        end
-    end
-end
-save('out_2.mat', 'out', 'skipped', 'snrs', 'nROIs', 'nTrials');
-    %}
-load('out_2.mat');
 
 %% 
-clear combo;
-combo(length(nROIs), length(snrs)) = struct();
-flds = fields(out);
-for s = 1:length(snrs)
-    for r = 1:length(nROIs)
-        for fi = 1:length(flds)
-            temp = [out(:, r, s).(flds{fi})];
-            combo(r, s).(flds{fi}) = [nanmean(temp), ...
-                nanstd(temp)/sqrt(length(temp))];
-        end
+nTrials = zeros(length(nROIs), length(snrs), length(noisePW), length(cutoff));
+
+hitSignal = nan(length(nROIs), length(snrs), length(noisePW), length(cutoff), maxTrials);
+faSignal = nan(length(nROIs), length(snrs), length(noisePW), length(cutoff), maxTrials);
+hitROI = nan(length(nROIs), length(snrs), length(noisePW), length(cutoff), maxTrials);
+nDetectedPerTrueROI = nan(length(nROIs), length(snrs), length(noisePW), length(cutoff), maxTrials);
+
+nSignal = nan(length(nROIs), length(snrs), length(noisePW), length(cutoff), maxTrials);
+nNoise = nan(length(nROIs), length(snrs), length(noisePW), length(cutoff), maxTrials);
+for i = 1:length(dr)
+    temp = load(fullfile(ptToData, dr(i).name), 'params', 'out', 'truthMap');
+    
+    snr = find(snrs == temp.params.snr);
+    pw = find(noisePW == temp.params.noisePW);
+    nROI = find(nROIs == temp.params.nROI);
+    
+    for j = 1:length(cutoff)
+        nt = nTrials(nROI, snr, pw, j) + 1;
+        nTrials(nROI, snr, pw, j) = nt;
+        
+        nSignal(nROI, snr, pw, j, nt) = sum(temp.truthMap(:));
+        nNoise(nROI, snr, pw, j, nt) = sum(~temp.truthMap(:));
+        
+        hitSignal(nROI, snr, pw, j, nt) = temp.out{j}.hitSignal;
+        faSignal(nROI, snr, pw, j, nt) = temp.out{j}.faSignal;
+        
+        nDetectedPerTrueROI(nROI, snr, pw, j, nt) = temp.out{j}.nDetectedPerTrueROI;
+        hitROI(nROI, snr, pw, j, nt) = temp.out{j}.hitROI;
+            
     end
 end
 
-%% pixels that get through thresholding
-sym = '+o*pxsd^v<>h';
-figure(1); clf; hold on;
-for r = 1:length(nROIs)
-    plot(-1, -1, sym(r)); 
-end
-for r = 1:length(nROIs)
-    hitPixels = vertcat(combo(r, :).hitPixels);
-    faPixels = vertcat(combo(r, :).faPixels);
-    
-    %plot(faPixels(:, 1), hitPixels(:, 1), 'o-');
-    surface([faPixels(:, 1), faPixels(:, 1)],...
-        [hitPixels(:, 1), hitPixels(:, 1)],...
-        zeros(length(snrs), 2),...
-        [snrs', snrs'],...
-        'facecol', 'no',...
-        'edgecol', 'interp',...
-        'linewidth', 2,...
-        'marker', sym(r),...
-        'markersize', 10);
-end
-xlabel('false alarm rate');
-ylabel('hit rate');
-title('step 1: identifying pixels with signal');
-legend(cellfun(@(x) [num2str(x), ' ROI'], num2cell(nROIs),...
-    'UniformOutput', false), 'Location', 'southeast');
-xlim([0, 1]);
-ylim([.95, 1]);
-hcb = colorbar;
-title(hcb, 'SNR');
-set(hcb, 'Ticks', snrs, 'TickLabels', cellfun(@num2str, num2cell(snrs), ...
-    'UniformOutput', false));
-
 %% pixels that get through clustering
-figure(2); clf; hold on;
-for r = 1:length(nROIs)
-    plot(-1, -1, sym(r)); 
+hits = nan(length(cutoff), length(snrs), length(noisePW));
+fas = nan(length(cutoff), length(snrs), length(noisePW));
+for s = 1:length(snrs)
+    for p = 1:length(noisePW)
+        hit = squeeze(hitSignal(:, s, p, :, :));
+        fa = squeeze(faSignal(:, s, p, :, :));
+        
+        nS = squeeze(nSignal(:, s, p, :, :));
+        nN = squeeze(nSignal(:, s, p, :, :));
+        
+        tS = squeeze(nansum(nansum(nS, 1), 3));
+        tN = squeeze(nansum(nansum(nN, 1), 3));
+        
+        hits(:, s, p) = squeeze(nansum(nansum(hit .* nS, 1), 3)) ./ tS;
+        fas(:, s, p) = squeeze(nansum(nansum(fa .* nN, 1), 3)) ./ tS;
+    end
 end
-for r = 1:length(nROIs)
-    hitSignal = vertcat(combo(r, :).hitSignal);
-    faSignal = vertcat(combo(r, :).faSignal);
+
+figure(1); clf;
+set(gcf, 'Color', 'w');
+for p = 1:size(hits, 3)
+    subplot(1, size(hits, 3), p); hold on;
+    set(gca, 'FontWeight', 'bold', 'FontSize', 14);
+    title(sprintf('noise spectrum 1/f^%i', noisePW(p)),...
+        'FontSize', 20, 'FontWeight', 'bold');
+    for s = 1:size(hits, 2)
+        plot(fas(:, s, p), hits(:, s, p), '.-', 'markersize', 20);
+    end
+    xlabel('False Alarm Rate', 'FontSize', 16, 'FontWeight', 'bold');
+    ylabel('Hit Rate', 'FontSize', 16, 'FontWeight', 'bold');
     
-    % i'd prefer a 2d errorbar but :P
-    %plot(faSignal(:, 1), hitSignal(:, 1), 'o-');
-    surface([faSignal(:, 1), faSignal(:, 1)],...
-        [hitSignal(:, 1), hitSignal(:, 1)],...
-        zeros(length(snrs), 2),...
-        [snrs', snrs'],...
-        'facecol', 'no',...
-        'edgecol', 'interp',...
-        'linewidth', 2,...
-        'marker', sym(r),...
-        'markersize', 10);
+    lg = legend(cellfun(@(x) ['SNR=', num2str(x)], num2cell(snrs), 'UniformOutput', false),...
+        'Location', 'southeast', 'FontSize', 14, 'FontWeight', 'bold');
 end
-xlabel('false alarm rate');
-ylabel('hit rate');
-title('step 2: pixels that get clustered');
-legend(cellfun(@(x) [num2str(x), ' ROI'], num2cell(nROIs),...
-    'UniformOutput', false), 'Location', 'southeast');
-xlim([0 .25]);
-ylim([.2 1]);
-hcb = colorbar;
-title(hcb, 'SNR');
-set(hcb, 'Ticks', snrs, 'TickLabels', cellfun(@num2str, num2cell(snrs), ...
-    'UniformOutput', false));
 
 %% number detected ROI with matching true ROI
-figure(3); clf; hold on;
-for r = 1:length(nROIs)
-    temp = vertcat(combo(r, :).nDetectedPerTrueROI);
-    plot(snrs, temp(:, 1), ['-', sym(r)],...
-        'markersize', 10, 'linewidth', 2);
+ratioDetected = nan(length(cutoff), length(snrs), length(noisePW));
+for s = 1:length(snrs)
+    for p = 1:length(noisePW)
+        temp = squeeze(nDetectedPerTrueROI(:, s, p, :, :));
+        %temp = bsxfun(@times, nROIs'/sum(nROIs), temp); % weigh by nROI
+        
+        temp = nanmean(nanmean(temp, 1), 3);
+        ratioDetected(:, s, p) = squeeze(temp);
+    end
 end
-xlabel('SNR');
-ylabel('# detected matched to true ROI');
-legend(cellfun(@(x) [num2str(x), ' ROI'], num2cell(nROIs),...
-    'UniformOutput', false), 'Location', 'northeast');
-set(gca, 'XTick', snrs, 'XTickLabels', cellfun(@num2str, num2cell(snrs),...
-    'UniformOutput', false), 'XScale', 'log');
-title('ratio of detected ROI to matched true ROI');
 
-%% ROI hit rate vs SNR
-figure(4); clf; hold on;
-for r = 1:length(nROIs)
-    temp = vertcat(combo(r, :).hitROI);
-    plot(snrs, temp(:, 1), ['-', sym(r)],...
-        'markersize', 10, 'linewidth', 2);
+figure(2); clf;
+set(gcf, 'Color', 'w');
+for p = 1:size(hits, 3)
+    subplot(1, size(ratioDetected, 3), p); hold on;
+    title(sprintf('noise spectrum 1/f^%i', noisePW(p)),...
+        'FontSize', 20, 'FontWeight', 'bold');
+    for s = 1:size(ratioDetected, 2)
+        plot(cutoff, squeeze(ratioDetected(:, s, p)), '.-', 'markersize', 20);
+    end
+    xlabel('cutoff', 'FontSize', 16, 'FontWeight', 'bold');
+    ylabel('ratio of detected to true ROI', 'FontSize', 16, 'FontWeight', 'bold');
+    
+    lg = legend(cellfun(@(x) ['SNR=', num2str(x)], num2cell(snrs), 'UniformOutput', false),...
+        'Location', 'southeast', 'FontSize', 14, 'FontWeight', 'bold');
 end
-xlabel('SNR');
-ylabel('ROI hit rate');
-legend(cellfun(@(x) [num2str(x), ' ROI'], num2cell(nROIs),...
-    'UniformOutput', false), 'Location', 'southeast');
-set(gca, 'XTick', snrs, 'XTickLabels', cellfun(@num2str, num2cell(snrs),...
-    'UniformOutput', false), 'XScale', 'log');
-title('ROI hit rate');
+
+%% hit rate on ROIs
+hitROI2 = nan(length(cutoff), length(snrs), length(noisePW));
+for s = 1:length(snrs)
+    for p = 1:length(noisePW)
+        temp = squeeze(hitROI(:, s, p, :, :));
+        %temp = bsxfun(@times, nROIs'/sum(nROIs), temp); % weigh by nROI
+        
+        temp = nanmean(nanmean(temp, 1), 3);
+        hitROI2(:, s, p) = squeeze(temp);
+    end
+end
+
+figure(3); clf;
+set(gcf, 'Color', 'w');
+for p = 1:size(hits, 3)
+    subplot(1, size(ratioDetected, 3), p); hold on;
+    title(sprintf('noise spectrum 1/f^%i', noisePW(p)),...
+        'FontSize', 20, 'FontWeight', 'bold');
+    for s = 1:size(ratioDetected, 2)
+        plot(cutoff, squeeze(hitROI2(:, s, p)), '.-', 'markersize', 20);
+    end
+    xlabel('cutoff', 'FontSize', 16, 'FontWeight', 'bold');
+    ylabel('ROI hite rate', 'FontSize', 16, 'FontWeight', 'bold');
+    
+    lg = legend(cellfun(@(x) ['SNR=', num2str(x)], num2cell(snrs), 'UniformOutput', false),...
+        'Location', 'southeast', 'FontSize', 14, 'FontWeight', 'bold');
+end
