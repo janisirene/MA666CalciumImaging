@@ -198,6 +198,8 @@ for t=1:length(tolerance)
     
     if isempty(minInd) == 1
         idealComponents = length(bigSum);
+    elseif minInd == 1
+        idealComponents = minInd;
     else
         idealComponents = minInd-1;
     end
