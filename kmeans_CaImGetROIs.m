@@ -46,13 +46,10 @@ function [detectedROI,finalBinaryImage] = kmeans_CaImGetROIs(filename,estNeuronR
 if nargin < 2
     estNeuronRadius = 5;
     maxNeurons = 20;
-    tolerance = 0.1;
 elseif nargin < 3
     maxNeurons = 20;
-    tolerance = 0.1;
-elseif nargin < 4
-    tolerance = 0.1;
 end
+
 
 estNeuronRadius = round(estNeuronRadius);
 estNeuronArea = pi*estNeuronRadius*estNeuronRadius;
