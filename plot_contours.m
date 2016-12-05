@@ -65,7 +65,8 @@ fontname = 'helvetica';
     set(gca,'position',posA);
     hold on;
     
-    cmap = hot(3*size(Aor,2));
+%    cmap = hot(3*size(Aor,2));
+    cmap = repmat([1 0.5490 0.0],3*size(Aor,2),1); % Color all contours orange
     if ~(nargin < 6 || isempty(Coor))
         CC = Coor;
         for i = 1:size(Aor,2)
@@ -123,6 +124,9 @@ fontname = 'helvetica';
     if display_numbers
         if ~exist('lbl','var') || isempty(lbl)
             lbl = strtrim(cellstr(num2str((1:size(Aor,2))')));
+        end
+        if isnumeric(lbl)
+            lbl = strtrim(cellstr(num2str(lbl(:))));
         end
         text(round(cm(1:max_number,2)),round(cm(1:max_number,1)),lbl(1:max_number),'color',[0,0,0],'fontsize',16,'fontname',fontname,'fontweight','bold');
     end

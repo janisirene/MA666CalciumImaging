@@ -3,14 +3,44 @@
 
 %% Calcium Data
 % Basic background on calcium data. Maybe have another tutorial with their
-% model assumptions. Show gif of raw data here?
+% model assumptions. The video file of the sample data being analyzed is
+% given, but you can also find it here:
+%%
+% <https://drive.google.com/open?id=0B6YaPZeMxSERRI9GNjFKYk1xV0k demoVid.avi>
 
 filename = 'demoMovie.tif';
 im = readTifStack(filename);
 z_project(im);
 
 %% Parameters
-
+% Only a few of the parameters are discussed here. Most of these will
+% probably not change from one analysis to another, but you may want to
+% compare different settings before assigning standard run parameters. The
+% full list of tunable options for each component of the algorithm can be
+% found in the documentation.
+%%
+% The parameters explained in this example include
+%%
+% * |d1| and |d2|: these are inherent in the data set; they represent the
+% spatial dimensions of the data set.
+% * |search_method|: this parameter is used in the spatial update portion
+% of the algorithm. The options are 'dilate' or 'ellipse' and represent the
+% way that the algorithm searches for which pixels to include in the
+% spatial components. The 'dilate' option dilates the selection from the
+% previous iteration; the 'ellipse' option constructs an ellipse using the
+% center of mass and two principle components of the spatial component from
+% the previous iteration.
+% * |deconv_method|: indicates how to process raw fluorescence data from a
+% given region into its calcium signal. There are five options provided
+% with the code ('project', 'constrained_foopsi', 'MCEM_foopsi', 'MCMC',
+% and 'noise_constrained'). Any other method that takes as input the
+% averaged raw traces from each spatial component and returns the
+% deconvolved calcium activity can be added in to the the
+% |update_temporal_components| function by adding another case to the
+% switch case portion of the function. In general, 'constrained_foopsi' is
+% recommended. For details on how this method calculates the calcium
+% activity given the raw data, see the included tutorial.
+% * 
 %%
 % Inherent
 [d1,d2,T] = size(im);                                % dimensions of dataset
