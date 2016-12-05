@@ -1,8 +1,18 @@
 function [out, truthMap, ROI] = testCaImGetROIsOnSimulation(params)
-% TO DO:
-%   1. systematically test more snr
-%   2. vary threshold in segmentation algorithm to generate full ROC curve
-%   3. add metrics to compare ROI footprint shapes
+% [out, truthMap, ROI] = testCaImGetROIsOnSimulation(params)
+% Simulates a calcium imaging signal, runs a segmentation algorithm on it,
+% and returns statistics which show the algorithm's performance.
+% 
+% Inputs:
+%   params - [optional] structure defining spatial image size (sz), signal
+%   duration (dur), number of ROI (nROI), signal to noise ratio (snr),
+%   noise spectrum type (noisePW), and name of file to save simulation to
+%   (svMovie) for the simulation. Defaults are used otherwise.
+% Outputs:
+%   out - struct with hit and FA rates, d-prime values,... for each cutoff
+%   value
+%   truthMap - binary array of true signal pixel locations
+%   ROI - ROI structure of simulated data
 % author: Janis Intoy
 % date: November 9, 2016
 % modified: Novemeber 10, 2016 - added hit and false alarm rate calcs
@@ -12,12 +22,11 @@ if ~exist('params', 'var')
     sz = 30; % sz x sz image
     dur = 10; % seconds sampled at 30Hz
     nROI = 5; % number of cells
-    snr = 30; % signal to noise ratio
+    snr = 10; % signal to noise ratio
     noisePW = 0; % noise magnitude spectrum (1/freq^noisePW) (0 = white)
     svMovie = ''; % filename to save movie as .tif
-    
+    cutoff = .5; % cutoff for hierarchical clustering
     estNeuronRadius = 5;
-    
     
 else
     sz = params.size;
@@ -27,13 +36,16 @@ else
     noisePW = params.noisePW;
     svMovie = params.saveMovie;
     estNeuronRadius = params.estNeuronRadius;
+    cutoff = params.cutoff;
 end
+cutoff = [1e-2,1e-1,1e0,1e1,1e2];
 
 %% simulate data
 [ROI, full] = simulateCalcImg(sz, dur, nROI, snr, noisePW, svMovie);
 
 %% automatic segmenation algorithm
-[finalBinaryImage,Components,Centroids, clusterData, detectedROI] = CaImGetROIs(full, estNeuronRadius, nROI);
+% [finalBinaryImage,clusterData, detectedROI] = CaImGetROIs(full, estNeuronRadius, cutoff);
+[detectedROI, finalBinaryImage] = kmeans_ForJanis(full,estNeuronRadius,nROI);
 
 %% truth map
 truthMap = zeros(sz);
@@ -43,7 +55,7 @@ end
 
 %% plot: compare Components and ROI
 out = cell(size(detectedROI));
-for t = 1:length(detectedROI)
+for t = 1:length(detectedROI) % length depends on number of cutoffs given
     detectedMap = zeros(sz);
     
     figure(); hold on;
@@ -69,7 +81,7 @@ for t = 1:length(detectedROI)
     % plotTrueROIOverlay(ROI);
     axis image;
     xlim([1, sz]); ylim([1, sz]);
-    title(sprintf('detected overlaid on true: cutoff = %1.1f', t*.1));
+    title(sprintf('detected overlaid on true: cutoff = %1.3f', cutoff(t)));
     set(gca, 'YDir', 'reverse');
     
     
@@ -90,8 +102,6 @@ for t = 1:length(detectedROI)
     
     nDetected = length(unique(foundROIs)) - any(foundROIs == 0);
     hitROI = nDetected / actualNROI;
-    % is there a right way to calculate a false alarm rate on ROI? I guess
-    % that's what the individual pixel way is for
     
     %% save output variables
     tout = struct('hitPixels', hitPixels,...

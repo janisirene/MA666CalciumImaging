@@ -3,9 +3,9 @@
 addpath(genpath('ca_source_extraction-master'));
 
 % VideoFile = 'demoMovie.tif';
-VideoFile = fullfile('Emily_Data', 'WWY_080116_3_071_2.tif');
+VideoFile = fullfile('Emily_Data', 'Raw_WWY_080116_3_089.tif');
 %VideoFile = fullfile('C:', 'Users', 'jintoy', 'Desktop', 'SLEEP01.tif');
-VideoFile = 'example_n3_2.tif';
+%VideoFile = 'example_n3_2.tif';
 
 Y = readTifStack(VideoFile);
 Y = double(Y);
@@ -25,30 +25,49 @@ snr = max(Y(:)) / std(Y(:));
 
 %% run Emily's data through our algorithm
 % Emily's data shifts around frame 200, I'll cut if off before then
-Ycut = Y(1:100, 1:100, 1:175);
+%Ycut = Y(1:100, 1:100, 1:175);
+%sYcut = Y;
+Ycut = Y(250:350, 150:250, :);
 Ycut = Ycut - min(Ycut(:));
 Ycut = Ycut / max(Ycut(:));
 tic; 
-[finalBinaryImage, Components, Centroids, clusterData] = ...
-    CaImGetROIs(Ycut, 5, 40);
+[finalBinaryImage, clusterData, detectedROIs] = ...
+    CaImGetROIs(Ycut, 10, 100);
 toc;
 
 %% play Y as a movie
-m = Y;
+m = Ycut;
 
 figure(100); clf;
 h = imagesc(m(:, :, 1));
 cmax = max(m(:));
-caxis([0, cmax]);
+cmin = min(m(:));
+caxis([cmin, cmax]);
 axis image;
 % xlim([1, 100]);
-% ylim([1, 100]);
+% ylim([1, 100]);s
 
 for i = 1:size(m, 3)
     set(h, 'CData', m(:, :, i)); 
-    caxis([0, cmax]);
+    caxis([cmin, cmax]);
     pause(.1);
 end
+
+%% max projection
+m = Ycut;
+
+maxProj = zeros(size(m, 1), size(m, 2));
+for t = 1:size(m, 3)
+    temp = m(:, :, t);
+    q = quantile(temp(:), .99);
+    maxProj = maxProj + (temp > q);
+end
+figure(101); clf;
+imagesc(maxProj);
+axis image;
+
+figure(102); clf;
+hist(maxProj(:), 50);
 
 %% portion of Y that looks like only noise
 m = Yw;

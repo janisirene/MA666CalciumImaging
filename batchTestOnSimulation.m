@@ -65,10 +65,14 @@ for s = 1:length(snrs)
     end
 end
 
-figure(1); clf;
-set(gcf, 'Color', 'w');
+fh = 0;
+
+
 for p = 1:size(hits, 3)
-    subplot(1, size(hits, 3), p); hold on;
+    fh = fh + 1;
+    figure(fh); clf;
+    set(gcf, 'Color', 'w');
+    hold on;
     set(gca, 'FontWeight', 'bold', 'FontSize', 14);
     title(sprintf('noise spectrum 1/f^%i', noisePW(p)),...
         'FontSize', 20, 'FontWeight', 'bold');
@@ -94,10 +98,11 @@ for s = 1:length(snrs)
     end
 end
 
-figure(2); clf;
-set(gcf, 'Color', 'w');
 for p = 1:size(hits, 3)
-    subplot(1, size(ratioDetected, 3), p); hold on;
+    fh = fh + 1;
+    figure(fh); clf;
+    set(gcf, 'Color', 'w');
+    hold on;
     title(sprintf('noise spectrum 1/f^%i', noisePW(p)),...
         'FontSize', 20, 'FontWeight', 'bold');
     for s = 1:size(ratioDetected, 2)
@@ -122,10 +127,12 @@ for s = 1:length(snrs)
     end
 end
 
-figure(3); clf;
-set(gcf, 'Color', 'w');
 for p = 1:size(hits, 3)
-    subplot(1, size(ratioDetected, 3), p); hold on;
+    fh = fh + 1;
+    figure(fh); clf;
+    set(gcf, 'Color', 'w');
+    hold on;
+    
     title(sprintf('noise spectrum 1/f^%i', noisePW(p)),...
         'FontSize', 20, 'FontWeight', 'bold');
     for s = 1:size(ratioDetected, 2)
