@@ -1,4 +1,4 @@
-function [idealIdx,allPixels] = kmeans_CaImGetROIs(filename,estNeuronRadius,maxNeurons,tolerance)
+function [detectedROI,finalBinaryImage] = kmeans_CaImGetROIs(filename,estNeuronRadius,maxNeurons)
 %kmeans_CaImGetROIs.m
 %   Take as input a .avi or .tif file and get out the individual ROIs that a simple
 %    algorithm has identified.
@@ -156,8 +156,8 @@ tempBinaryImage = bwareaopen(tempBinaryImage,round(estNeuronArea/4));
 
 % find the set of connected components ... all pixels with values greater than
 %  0 in tempBinaryImage
-tempBinaryImage = tempBinaryImage>0;
-Components = bwconncomp(tempBinaryImage);
+finalBinaryImage = tempBinaryImage>0;
+Components = bwconncomp(finalBinaryImage);
 PixelIdxList = Components.PixelIdxList;
 numComponents = Components.NumObjects;
 
@@ -185,6 +185,7 @@ for kk=1:maxNeurons
     bigSum(kk) = sum(SUMD);
     tempPixelIdxList{kk} = idx;
 end
+difference = diff(-bigSum);
 
 % try to find the "elbow" of the bigSum vector ... plot bigSum to see that
 %  it looks a bit like an AIC curve ... it's the sum of the distances
@@ -194,27 +195,38 @@ end
 %  increases ... the value effectively saturates at an elbow point on the
 %  curve and we find that by specifying a tolerance in the difference
 %  between adjacent summed distances
-difference = diff(-bigSum);
-minInd = find(difference<tolerance,1,'first');
+tolerance = [1e-2,1e-1,1e0,1e1,1e2];
+detectedROI = cell(length(tolerance), 1);
+for t=1:length(tolerance)
+    minInd = find(difference<tolerance(t),1,'first');
+    
+    if isempty(minInd) == 1
+        idealComponents = length(bigSum);
+    else
+        idealComponents = minInd-1;
+    end
+    idealIdx = tempPixelIdxList{idealComponents};
 
-if isempty(minInd) == 1
-    idealComponents = length(bigSum);
-else
-    idealComponents = minInd-1;
+    tempROI = struct('indices', [], 'trueROI', []);
+    cnt = 1;
+    for ii = 1:idealComponents
+        idx = idealIdx == ii; % indices of pixels in this cluster
+        if sum(idx) > estNeuronArea/4 % threshold the size of an ROI
+            sIdx = allPixels(idx);
+            tempROI(cnt).indices = sIdx;
+            cnt = cnt + 1;
+        end
+    end
+    detectedROI{t} = tempROI;
 end
-%     plot(minInd,bigSum(minInd),'*r','MarkerSize',15);
 
-display(sprintf('Minimum at %d Neurons',idealComponents));
-
-idealIdx = tempPixelIdxList{idealComponents};
-
-figure();hold on;
-for ii=1:idealComponents
-    pixels = allPixels(idealIdx==ii);
-    [r,c] = ind2sub([width,height],pixels);
-    plot(r,c,'.','MarkerSize',10);
-end
-set(gca,'YDir','reverse');title(sprintf('%d Identified Cells',idealComponents));
+% figure();hold on;
+% for ii=1:idealComponents
+%     pixels = allPixels(idealIdx==ii);
+%     [r,c] = ind2sub([width,height],pixels);
+%     plot(r,c,'.','MarkerSize',10);
+% end
+% set(gca,'YDir','reverse');title(sprintf('%d Identified Cells',idealComponents));
 end
 
 function [crossCorr] = myXCORR(Signal1,Signal2,numLags)
