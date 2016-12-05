@@ -69,9 +69,8 @@ if ischar(filename) % data input is .avi or .tif or matlab array
                 fullVideo(:,:,count) = mean(double(temp),3);
                 count = count+1;
             end
-            fullVideo = fullVideo(60:470,230:640,:);
         case '.tif'
-            fullVideo = readTifStack(filename);
+            fullVideo = double(readTifStack(filename));
             numFrames = size(fullVideo, 3);
     end
 else % data input is already 3d array
