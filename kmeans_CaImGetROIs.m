@@ -91,20 +91,27 @@ end
 minVal = min(min(min(fullVideo)));
 maxVal = max(max(max(fullVideo)));
 fullVideo = (fullVideo-minVal)./(maxVal-minVal);
+
 % consider spatial downsample ... maybe temporal as well
 % fullVideo = fullVideo(1:2:end,1:2:end,:);
 
-% denoise each frame separately with Wiener filter and 
-%  calculate a "maximum brightness composite image" 
+% denoise each frame separately with Wiener filter, subtract constant
+% background, and calculate a "maximum brightness composite image" 
 width = size(fullVideo,1);
 height = size(fullVideo,2);
 
-maxBrightIm = zeros(width,height);
+
 display('Filtering video...');
 fltVideo = zeros(size(fullVideo));
 for ii=1:numFrames
     temp = fullVideo(:,:,ii);
     fltVideo(:,:,ii) = wiener2(temp,[round(estNeuronRadius/2),round(estNeuronRadius/2)]);
+end
+
+maxBrightIm = zeros(width,height);
+background = median(fltVideo,3);
+for ii=1:numFrames
+    fltVideo(:,:,ii) = fltVideo(:,:,ii)-background;
     pixelValues = fltVideo(:,:,ii);threshold = quantile(pixelValues(:),0.99);
     maxBrightIm = maxBrightIm+(pixelValues>threshold);
 end
