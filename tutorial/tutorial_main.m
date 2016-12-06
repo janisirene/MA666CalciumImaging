@@ -1,9 +1,10 @@
 %% Simultaneous Denoising, Deconvolution and Demixing of Calcium Imaging Data
 % This tutorial is adapted from the demo script provided along with the
 % Calcium Source Extraction software package developed by Pnevmatikakis et
-% al. (available <https://github.com/epnev/ca_source_extraction here>).
-% More elaborate details and an analysis of algorithmic performance can be
-% found in [1]. 
+% al. (available <https://github.com/epnev/ca_source_extraction here>). It
+% is meant to be a high level overview of the functions employed with
+% explanations of what they do. More elaborate details and an analysis of
+% algorithmic performance can be found in [1].
 
 %% Calcium Imaging
 % In analyzing calcium imaging data, there exist three main challenges: (1)
@@ -16,10 +17,9 @@
 % key advantage of this algorithm for ROI selection compared with manual
 % selection is the ability to identify and disentangle signals from
 % spatially overlapping cells. Moreover, the software features an option to
-% manually initialize regions where cells are presumed to exist. This
-% purpose of this tutorial is to give a brief and concise overview of the
-% different components of the analysis so that it will be easy to test and
-% adopt.
+% manually initialize regions where cells are presumed to exist. Below, we
+% walk through the different components of the analysis so that it will be
+% easy to test on your own data and adopt into your processing pipeline.
 % 
 %%
 % A video of the image file being analyzed throughout this tutorial can be
@@ -28,9 +28,9 @@
 % <https://drive.google.com/open?id=0B6YaPZeMxSERRl9GNjFKYk1xV0k demoMovie.avi>
 
 filename = 'demoMovie.tif';
-im = double(readTifStack(filename)); % Note that the image must be a double
-im = im - min(im(:));
-Cn = correlation_image(im);
+Y = double(readTifStack(filename)); % Note that Y must be a double
+Y = Y - min(Y(:));
+Cn = correlation_image(Y);
 
 %%
 % Try replacing filename with a path to a file of your own data.
@@ -75,7 +75,7 @@ Cn = correlation_image(im);
 %%
 % Inherent
 
-[d1,d2,T] = size(im);
+[d1,d2,T] = size(Y);
 d = d1*d2; % total number of pixels
 
 %%
@@ -88,7 +88,7 @@ p = 2;
 options = CNMFSetParms(...                      
     'd1',d1,'d2',d2,... 
     'deconv_method','constrained_foopsi',... 
-    'merge_thr',.85,... 
+    'merge_thr',.8,... 
     'gSig',tau... 
     );
 
@@ -111,7 +111,7 @@ options = CNMFSetParms(...
 %%
 % * Estimation of Model Parameters
 
-[P, im] = preprocess_data(im,p);
+[P, Y] = preprocess_data(Y,p);
 
 %% Initialize spatial components
 % The default way of initializing the spatial components is with a greedy
@@ -143,11 +143,11 @@ options = CNMFSetParms(...
 % * Group Lasso Initialization for Somatic Imaging Data
 
 [Ain,Cin,bin,fin,center] = ...
-    initialize_components(im,max_cells,tau,options,P);
+    initialize_components(Y,max_cells,tau,options,P);
 
 %% 
-% Let's take a look at the cell centers that we just found. 
-figure; imagesc(Cn);
+% Let's take a look at what we have so far. 
+figure; plot_contours(Ain, Cn, options, 1);
 axis equal; axis tight; hold all;
 scatter(center(:,2),center(:,1),'mo');
 title('Center of ROIs found from initialization algorithm');
@@ -161,7 +161,7 @@ title('Center of ROIs found from initialization algorithm');
 refine_components = false;  % set this to true to change the cell centers
 if refine_components
     [Ain,Cin,center] = manually_refine_components(...
-        im,Ain,Cin,center,Cn,tau,options);
+        Y,Ain,Cin,center,Cn,tau,options);
 end
 %% Update spatial components
 % Both the spatial and temporal updates rely on the solution of constrained
@@ -185,6 +185,7 @@ end
 % is minimized subject to the following constraints:
 %%
 % $$A, \overline{b} > 0$$
+%%
 % $$|| Y_i - A_iC^{(k-1)} - \overline{b}_i\overline{f}^{(k-1)T}|| <=
 % \sigma_i\sqrt(T)$$
 %%
@@ -197,18 +198,56 @@ end
 % * Estimating A, b
 % * Ranking and removing components
 
-im = reshape(im,d,T);
-[A,b,Cin] = update_spatial_components(im,Cin,fin,[Ain,bin],P,options);
+Y = reshape(Y,d,T);
+[A,b,Cin] = update_spatial_components(Y,Cin,fin,[Ain,bin],P,options);
 %% Update temporal components
-% The calcium signal is assumed to follow the dynamics of the follow AR
+% The calcium signal is assumed to obey the dynamics of the following AR
 % model:
 %%
 % $$c(t) = \sum_{j=1}^p\gamma_j c(t-j) + s(t)$$
 %%
 % where $c(t)$ is the calcium concentration at time $t$, $s(t)$ is the
 % spiking activity at time $t$ and $\gamma_j$ for $j$ in $\{1,...,k\}$ are
-% the coefficients to be estimated. For each component, these coefficients
-% are estimated by solving 
+% the coefficients to be estimated. In order to estimate these
+% coefficients, Pnevmatikakis et al. derive the following expression for the
+% autocovariance ($C_y) of the observed signal:
+%%
+% $$C_y(\tau) = \sum_{k=1}^p\gamma_k C_y(\tau-j) -
+% \sigma^2 \gamma_\tau,  \quad 1\leq\tau\leq p$$
+%%
+% or
+%%
+% $$C_y(\tau) = \sum_{k=1}^p\gamma_k C_y(\tau-j), \qquad \tau>p$$
+%%
+% By solving this system of equations using the autocovariance of the
+% sample in $C_y$, the algorithm generates estimates of the AR
+% coefficients. So now we can rearrange the AR model to get $s$ in terms of
+% $c$:
+%%
+% $$s(t) = c(t) - \sum_{j=1}^p\gamma_j c(t-j)$$
+%%
+% In matrix form, this gives $S = GC$ where $C$ is a $T\times K$ matrix
+% representing the calcium activity, $G$ is a $T \times T$ banded matrix
+% with entries
+%%
+% $$G_{i,i} = 1$$
+%%
+% $$G_{i,i-j} = -\gamma_j$$
+%%
+% and $S$ is a $T\times K$ matrix representing the spiking activity.
+%%
+% Next, by setting up a CNMF problem (similar to the spatial update), an
+% estimate of the neural signal (spiking) for each component can be made.
+% As before, the signal should be nonnegative and obey the model for the
+% observed signal, $Y$, established in the previous section. Also, in order
+% to avoid overfitting, sparsity in the neural signal is imposed. So the
+% problem again becomes a minimization problem. We wish to update $S$ such
+% that $1_T^TS$ is minimized subject to the constraints
+%%
+% $$S > 0$$
+%%
+% $$|| Y_i - A_iC^{(k-1)} - \overline{b}_i\overline{f}^{(k-1)T}|| <=
+% \sigma_i\sqrt(T)$$
 %%
 % Methods Reference:
 %%
@@ -217,24 +256,34 @@ im = reshape(im,d,T);
 % * Ranking and removing components
 
 P.p = 0;    % set AR temporarily to zero for speed
-[C,f,P,S,imA] = update_temporal_components(im,A,b,Cin,fin,P,options);
+[C,f,P,S,imA] = update_temporal_components(Y,A,b,Cin,fin,P,options);
 
 %% Merge components
-[Am,Cm,K_m,merged_ROIs,Pm,Sm] = merge_components(im,A,b,C,f,P,S,options);
+% Now that we have an initial set of spatiotemporal components, it is
+% possible that some of the components selected are actually from the same
+% cell. This function merges components that are spatially overlapping and
+% have temporal correlation coefficients greater than the value in
+% options.merge_thr (which we set in the beginning when we assigned parameters).
+[Am,Cm,K_m,merged_ROIs,Pm,Sm] = merge_components(Y,A,b,C,f,P,S,options);
+%%
+% Change the value of merge_thr in the parameters and see how this affects
+% the number of components found.
 
 %% Repeat spatial and temporal updates
 % After merging the components, reupdate the spatial and temporal
 % components to account for merging.
 Pm.p = p;    
-[A2,b2,Cm] = update_spatial_components(im,Cm,f,[Am,b],Pm,options);
-[C2,f2,P2,S2,imA2] = update_temporal_components(im,A2,b2,Cm,f,Pm,options);
+[A2,b2,Cm] = update_spatial_components(Y,Cm,f,[Am,b],Pm,options);
+[C2,f2,P2,S2,imA2] = update_temporal_components(Y,A2,b2,Cm,f,Pm,options);
 
 %% Plot the results
-% An optional feature is to reorder the ROIs based on the maximum temporal
+% So now let's look at what the algorithm found! 
+%%
+% Note: an optional feature is to reorder the ROIs based on the maximum temporal
 % signal and size (default) or alternatively provide an ordering of your
 % own.
 [A_or,C_or,S_or,P_or] = order_ROIs(A2,C2,S2,P2); % order components
-C_df = extract_DF_F(im,A_or,C_or,P_or,options); % extract DF/F values (optional)
+C_df = extract_DF_F(Y,A_or,C_or,P_or,options); % extract DF/F values (optional)
 figure; plot_contours(A_or,Cn,options,1);
 figure; 
 base = 0; 
@@ -244,6 +293,13 @@ for i = 1:10
     hold on;
 end; hold off;
 title('\Delta f/f of first 10 ROIs')
+%%
+% Now, go back and explore what happens when you change some parameters. In
+% particular, what happens when you initialize more (less) cells (increase
+% or decrease max_cells)? How does changing the size of the cells (tau)
+% affect the final spatial footprints and calcium signals? 
+%%
+% If you have your own calcium images, load them in and see what happens.
 
 %% Bibliography
 %%
