@@ -1,6 +1,20 @@
 %% Autoregressive Model for Calcium Dynamics
-% Explain what an autoregressive model is and how this applies
-
+% An autoregressive process operates under the assumption that past
+% states
+% affect current states. An autoregressive process of order 1 means that
+% each state is affected by the state immediately preceding it, order 2
+% means that each state is affected by the two states immediately prior,
+% etc. An autoregressive process of order p (AR(p)) is defined as follows:
+%%
+% $$X_t = c + \sum_{i=1}^p\gamma_iX_{t-i} + \epsilon_t$$
+%%
+% where $c$ is a constant, $\gamma_i$ are the coefficients of the process
+% and $\epsilon_t$ is white noise. In this tutorial, we will look at an AR
+% process that incorporates spike data to generate a model of calcium
+% dynamics. The goal is to get an intuitive understanding of how this
+% particular calcium model works in order to understand its role in calcium
+% data analysis.
+%
 %% Generate spikes from exponential distribution
 rate = 1000; % spike rate (Hz)
 dur = .01; % duration of trial (s)
