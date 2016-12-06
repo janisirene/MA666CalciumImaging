@@ -6,7 +6,7 @@
    <!--
 This HTML was auto-generated from MATLAB code.
 To make changes, update the MATLAB code and republish this document.
-      --><title>Simultaneous Denoising, Deconvolution and Demixing of Calcium Imaging Data</title><meta name="generator" content="MATLAB 9.0"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2016-12-03"><meta name="DC.source" content="tutorial_main.m"><style type="text/css">
+      --><title>Simultaneous Denoising, Deconvolution and Demixing of Calcium Imaging Data</title><meta name="generator" content="MATLAB 9.0"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2016-12-06"><meta name="DC.source" content="tutorial_main.m"><style type="text/css">
 html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
 
 html { min-height:100%; margin-bottom:1px; }
@@ -66,150 +66,354 @@ table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px soli
 
 
 
-  </style></head><body><div class="content"><h1>Simultaneous Denoising, Deconvolution and Demixing of Calcium Imaging Data</h1><!--introduction--><p>This algorithm does some stuff...</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Calcium Data</a></li><li><a href="#3">Parameters</a></li><li><a href="#8">Preprocessing</a></li><li><a href="#10">Initialize spatial components</a></li><li><a href="#12">HALS</a></li><li><a href="#13">Manually refine spatial components</a></li><li><a href="#14">Update spatial components</a></li><li><a href="#16">Update temporal components</a></li><li><a href="#18">Merge components</a></li></ul></div><h2>Calcium Data<a name="1"></a></h2><p>Basic background on calcium data. Maybe have another tutorial with their model assumptions. The video file of the sample data being analyzed is given, but you can also fine it here:</p><p><a href="https://drive.google.com/open?id=0B6YaPZeMxSERRI9GNjFKYk1xV0k">demoVid.avi</a></p><pre class="codeinput">filename = <span class="string">'demoMovie.tif'</span>;
-im = readTifStack(filename);
-z_project(im);
-</pre><pre class="codeoutput">Warning: TIFF library warning - 'TIFFReadDirectory:  Unknown field with tag
-50838 (0xc696) encountered.' 
-Warning: TIFF library warning - 'TIFFReadDirectory:  Unknown field with tag
-50839 (0xc697) encountered.' 
-Warning: TIFF library warning - 'TIFFReadDirectory:  Unknown field with tag
-50838 (0xc696) encountered.' 
-Warning: TIFF library warning - 'TIFFReadDirectory:  Unknown field with tag
-50839 (0xc697) encountered.' 
-</pre><img vspace="5" hspace="5" src="tutorial_main_01.png" alt=""> <h2>Parameters<a name="3"></a></h2><p>Only a few of the parameters are discussed here. Most of these will probably not change from one analysis to another, but you may want to compare different things before settling on standard settings. The full list of tunable options for each component of the algorithm can be found in the documentation.</p><p>The parameters set in this example include</p><div><ul><li><tt>d1</tt> and <tt>d2</tt>: these are inherent in the data set; they represent the spatial dimensions of the data set.</li><li><tt>search_method</tt>: this parameter is used in the spatial update portion of the algorithm. The options are 'dilate' or 'ellipse' and represent the way that the algorithm searches for which pixels to include in the spatial components. The 'dilate' option dilates the selection from the previous iteration; the 'ellipse' option constructs an ellipse using the center of mass and two principle components of the spatial component from the previous iteration.</li><li><tt>deconv_method</tt>: indicates how to process raw fluorescence data from a given region into its calcium signal. There are five options provided with the code ('project', 'constrained_foopsi', 'MCEM_foopsi', 'MCMC', and 'noise_constrained'). Any other method that takes as input the averaged raw traces from each spatial component and returns the deconvolved calcium activity can be added in to the the <tt>update_temporal_components</tt> function by adding another case to the switch case portion of the function. In general, 'constrained_foopsi' is recommended. For details on how this method calculates the calcium activity given the raw data, see the included tutorial. *</li></ul></div><p>Inherent</p><pre class="codeinput">[d1,d2,T] = size(im);                                <span class="comment">% dimensions of dataset</span>
-d = d1*d2;                                          <span class="comment">% total number of pixels</span>
-</pre><p>User defined</p><pre class="codeinput">max_cells = 50;                                           <span class="comment">% number of components to be found</span>
-p = 2;                                            <span class="comment">% order of autoregressive system (p = 0 no dynamics, p=1 just decay, p = 2, both rise and decay)</span>
+  </style></head><body><div class="content"><h1>Simultaneous Denoising, Deconvolution and Demixing of Calcium Imaging Data</h1><!--introduction--><p>This tutorial is adapted from the demo script provided along with the Calcium Source Extraction software package developed by Pnevmatikakis et al. (available <a href="https://github.com/epnev/ca_source_extraction">here</a>). More elaborate details and an analysis of algorithmic performance can be found in [1].</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Calcium Imaging</a></li><li><a href="#5">Parameters</a></li><li><a href="#10">Preprocessing</a></li><li><a href="#15">Initialize spatial components</a></li><li><a href="#23">Manually refine spatial components</a></li><li><a href="#24">Update spatial components</a></li><li><a href="#33">Update temporal components</a></li><li><a href="#38">Merge components</a></li><li><a href="#39">Repeat spatial and temporal updates</a></li><li><a href="#40">Plot the results</a></li><li><a href="#41">Bibliography</a></li></ul></div><h2>Calcium Imaging<a name="1"></a></h2><p>In analyzing calcium imaging data, there exist three main challenges: (1) segmentation of the spatial footprint of the region of interest (ROI); (2) demixing of spatially overlapping cells; (3) recovery of neural (spiking) activity from noisy measurements of calcium indicators. This software addresses all three problems simultaneously while minimizing the need to tune parameters. In general, it is anticipated that only the number of cells and approximate size need be tuned between analyses. One key advantage of this algorithm for ROI selection compared with manual selection is the ability to identify and disentangle signals from spatially overlapping cells. Moreover, the software features an option to manually initialize regions where cells are presumed to exist. This purpose of this tutorial is to give a brief and concise overview of the different components of the analysis so that it will be easy to test and adopt.</p><p>A video of the image file being analyzed throughout this tutorial can be found here:</p><p><a href="https://drive.google.com/open?id=0B6YaPZeMxSERRl9GNjFKYk1xV0k">demoMovie.avi</a></p><pre class="codeinput">filename = <span class="string">'demoMovie.tif'</span>;
+im = double(readTifStack(filename)); <span class="comment">% Note that the image must be a double</span>
+im = im - min(im(:));
+Cn = correlation_image(im);
+</pre><p>Try replacing filename with a path to a file of your own data.</p><h2>Parameters<a name="5"></a></h2><p>One of the highlights of this software is that it requires minimal tuning of parameters. Generally, only an estimate of the number of cells and the approximate size of the cells needs to be provided. However, for the sake of exploring a little deeper, a few additional parameters are discussed below. Most of these will probably not change from one analysis to another, but you may want to compare different settings before assigning standard run parameters and analysis of different types of data may require different options. The full list of tunable options for each function can be found in the software documentation.</p><p>The following parameters are particularly sensitive, relevant or interesting:</p><div><ul><li>d1 and d2: these are inherent in the data set; they represent the spatial dimensions of the images.</li><li>p: the order of the autoregressive model; a value of 1 here calculates coefficients for only the rate of decay of the calcium signal - a value of 2 also calculates the coefficients for the rate of growth. This parameter is used in the preprocessing step (<tt>preprocess_data</tt>) and in updating the temporal components (<tt>update_temporal_components</tt>).</li><li>deconv_method: indicates how to process raw fluorescence data from a given region into its calcium signal. There are five options provided with the code ('project', 'constrained_foopsi', 'MCEM_foopsi', 'MCMC', and 'noise_constrained'). Any other method that takes as input the averaged raw traces from each spatial component and returns the deconvolved calcium activity can be easily added in to the the <tt>update_temporal_components</tt> function by adding another case to the switch case portion of the function. In general, 'constrained_foopsi' is recommended. The algorithm from this method is described in Vogelstein, 2010 [2].</li><li>merge_thr: this parameter is used by the <tt>merge_components</tt> function. Components with overlapping spatial footprints whose temporal components have a correlation component greater than this value are merged into a single component.</li><li>tau: this parameter is used throughout the analysis and represents the approximate size of the</li></ul></div><p>Inherent</p><pre class="codeinput">[d1,d2,T] = size(im);
+d = d1*d2; <span class="comment">% total number of pixels</span>
+</pre><p>User defined</p><pre class="codeinput">max_cells = 50;
+tau = 4;
+p = 2;
 
 options = CNMFSetParms(<span class="keyword">...</span>
-    <span class="string">'d1'</span>,d1,<span class="string">'d2'</span>,d2,<span class="keyword">...</span><span class="comment">                         % dimensions of datasets</span>
-    <span class="string">'search_method'</span>,<span class="string">'dilate'</span>,<span class="string">'dist'</span>,8,<span class="keyword">...</span><span class="comment">       % search locations when updating spatial components</span>
-    <span class="string">'deconv_method'</span>,<span class="string">'constrained_foopsi'</span>,<span class="keyword">...</span><span class="comment">    % activity deconvolution method</span>
-    <span class="string">'temporal_iter'</span>,2,<span class="keyword">...</span><span class="comment">                       % number of block-coordinate descent steps</span>
-    <span class="string">'fudge_factor'</span>,.98,<span class="keyword">...</span><span class="comment">                      % bias correction for AR coefficients</span>
-    <span class="string">'merge_thr'</span>,.85,<span class="keyword">...</span><span class="comment">                         % merging threshold</span>
-    <span class="string">'gSig'</span>,4,<span class="keyword">...</span><span class="comment">                                % std of gaussian kernel (size of neuron)</span>
-    <span class="string">'maxthr'</span>,.05<span class="keyword">...</span><span class="comment">                             % threshold of max value below which values are discarded (default: 0.1)</span>
+    <span class="string">'d1'</span>,d1,<span class="string">'d2'</span>,d2,<span class="keyword">...</span>
+    <span class="string">'deconv_method'</span>,<span class="string">'constrained_foopsi'</span>,<span class="keyword">...</span>
+    <span class="string">'merge_thr'</span>,.85,<span class="keyword">...</span>
+    <span class="string">'gSig'</span>,tau<span class="keyword">...</span>
     );
-</pre><h2>Preprocessing<a name="8"></a></h2><p>Preprocessing includes fixing missing pixels, estimating model parameters. Explain autoregressive model (again with little detail and if there is time write up something more detailed) Sections: Autoregressive Model for Calcium Dynamics Estimation of Model Parameters</p><pre class="codeinput">[P,im] = preprocess_data(im,p);
-z_project(im);
+</pre><h2>Preprocessing<a name="10"></a></h2><p>Preprocessing includes fixing missing pixels and estimating the noise for each pixel (at this point, p is passed only for later use unless global AR coefficients are to be assigned).</p><p>The noise is estimated using the power spectral density of the fluorescence measurements at each pixel under the assumption high frequency components are noise. Therefore, an average of the amplitude of high frequency components should be a reasonable approximation of the noise variance.</p><p>The outputs here are <img src="tutorial_main_eq02661806082982697695.png" alt="$P$">, a structure variable which stores, among other things, the noise variance for each pixel, and <img src="tutorial_main_eq13574770362154675542.png" alt="$im$">, an updated version of the raw image with missing pixels fixed.</p><p>Methods Reference:</p><div><ul><li>Estimation of Model Parameters</li></ul></div><pre class="codeinput">[P, im] = preprocess_data(im,p);
 </pre><pre class="codeoutput">Estimating the noise power for each pixel from a simple PSD estimate...  done 
-</pre><img vspace="5" hspace="5" src="tutorial_main_02.png" alt=""> <p>These are the standard deviation projections - they don't look that different, but maybe we can find some way to show the differences. I want to see if we can get .gif files in here.</p><h2>Initialize spatial components<a name="10"></a></h2><p>Sections:</p><div><ul><li>Greedy Initialization for Somatic Imaging Data</li><li>Group Lasso Initialization for Somatic Imaging Data</li></ul></div><h2>HALS<a name="12"></a></h2><h2>Manually refine spatial components<a name="13"></a></h2><h2>Update spatial components<a name="14"></a></h2><p>Sections:</p><div><ul><li>Spatiotemporal Deconvolution and Component Demixing</li><li>Estimating A, b</li><li>Ranking and removing components</li></ul></div><h2>Update temporal components<a name="16"></a></h2><p>Sections:</p><div><ul><li>Spatiotemporal Deconvolution and Component Demixing</li><li>Estimating C, d</li><li>Ranking and removing components</li></ul></div><h2>Merge components<a name="18"></a></h2><p>This is basically the demo script, but we can add in more explanation and some demonstrative plots. It would also be cool to give some general demonstrations of the methods maybe. Something where we show what the deconvolution does on a single trace so that it's easy to understand... I dunno. Obviously we won't have time to show details on a lot of stuff, but if there is something that we really like, we could give more about it in separate (linked) tutorial pages.</p><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2016a</a><br></p></div><!--
+</pre><h2>Initialize spatial components<a name="15"></a></h2><p>The default way of initializing the spatial components is with a greedy algorithm which assigns cell centers based on the locations of the brightest pixels (those that explain the greatest variance in the filtered image) after application of a Gaussian filter. The spatial and temporal components of the region surrounding the center are calculated and subtracted from the image data and the process is repeated until the number of neurons specified by <tt>max_cells</tt> is found.</p><p>An alternative way of initializing spatial components is to solve a sparse nonnegative matrix factorization problem (group lasso initialization). The details of this method are not given here, but it is important to note that this method of initialization is recommended for densely packed cells or somatic data. To use this initialization method, when setting the options, add the line</p><p><tt>'init_method','sparse_NMF',...</tt></p><p>to the list of inputs given to CNMFSetParms.</p><p>The outputs of this function are the spatial footprints (Ain), the calcium concentration signals (Cin), the spatial and temporal backgrounds (bin and fin, respectively) and the locations of the centers.</p><p>Methods Reference:</p><div><ul><li>Greedy Initialization for Somatic Imaging Data</li><li>Group Lasso Initialization for Somatic Imaging Data</li></ul></div><pre class="codeinput">[Ain,Cin,bin,fin,center] = <span class="keyword">...</span>
+    initialize_components(im,max_cells,tau,options,P);
+</pre><pre class="codeoutput">No spatial downsampling is performed. Consider spatial downsampling if the field of view is very large. 
+No temporal downsampling is performed. Consider temporal downsampling if the recording is very long. 
+starting resampling 
+Initializing components with greedy method 
+found 10 out of 50 neurons..
+found 20 out of 50 neurons..
+found 30 out of 50 neurons..
+found 40 out of 50 neurons..
+found 50 out of 50 neurons..
+Refining initial estimates with HALS...  done 
+</pre><p>Let's take a look at the cell centers that we just found.</p><pre class="codeinput">figure; imagesc(Cn);
+axis <span class="string">equal</span>; axis <span class="string">tight</span>; hold <span class="string">all</span>;
+scatter(center(:,2),center(:,1),<span class="string">'mo'</span>);
+title(<span class="string">'Center of ROIs found from initialization algorithm'</span>);
+</pre><img vspace="5" hspace="5" src="tutorial_main_01.png" alt=""> <h2>Manually refine spatial components<a name="23"></a></h2><p>You may want to add or subtract pixels to the list of cell centers. The following function provides a nice GUI to do just this. By changing the <tt>refine_components</tt> flag, you can decide whether or not run this portion of the code.</p><pre class="codeinput">refine_components = false;  <span class="comment">% set this to true to change the cell centers</span>
+<span class="keyword">if</span> refine_components
+    [Ain,Cin,center] = manually_refine_components(<span class="keyword">...</span>
+        im,Ain,Cin,center,Cn,tau,options);
+<span class="keyword">end</span>
+</pre><h2>Update spatial components<a name="24"></a></h2><p>Both the spatial and temporal updates rely on the solution of constrained nonnegative matrix factorization (CNMF) problems. The idea here is that the raw signal can be modeled as</p><p><img src="tutorial_main_eq11985616382991990050.png" alt="$$Y(t) = F(t) + \overline\epsilon$$"></p><p>where <img src="tutorial_main_eq07649107795707013777.png" alt="$Y$"> is the raw data (at time <img src="tutorial_main_eq12656067504604335951.png" alt="$t$">), <img src="tutorial_main_eq08597826192214703288.png" alt="$F$"> is the fluorescence signal and <img src="tutorial_main_eq04202927574850129020.png" alt="$\epsilon$"> is Gaussian noise. Breaking this down even further, we have</p><p><img src="tutorial_main_eq11707480868608371534.png" alt="$$F(t) = \sum_{i=1}^k\overline a_ic_i(t) + B(t)$$"></p><p>or <img src="tutorial_main_eq16385925779054424164.png" alt="$F = AC + B$">. So now, when we look to update any of the parameters in these equations (<img src="tutorial_main_eq05147331747641807187.png" alt="$A$"> or <img src="tutorial_main_eq03986222445007418011.png" alt="$C$">, for example) we want the solutions to obey these equations. One other important additional constraint is that <img src="tutorial_main_eq05147331747641807187.png" alt="$A$"> and <img src="tutorial_main_eq02044268985122151499.png" alt="$b$"> should both be nonnegative. Finally, in order to promote more compact spatial footprints, <img src="tutorial_main_eq05147331747641807187.png" alt="$A$"> should be sparse. All of these conditions yield the following CNMF problem: we wish to update <img src="tutorial_main_eq05147331747641807187.png" alt="$A$"> such that <img src="tutorial_main_eq13451751174350819758.png" alt="$||A||_1$"> is minimized subject to the following constraints:</p><p><img src="tutorial_main_eq06109548103180066512.png" alt="$$A, \overline{b} &gt; 0$$&#xA;$$|| Y_i - A_iC^{(k-1)} - \overline{b}_i\overline{f}^{(k-1)T}|| <=&#xA;\sigma_i\sqrt(T)$$"></p><p>where <img src="tutorial_main_eq06341030922150264654.png" alt="$A_i$"> and <img src="tutorial_main_eq14455723337865561029.png" alt="$Y_i$"> represent the <img src="tutorial_main_eq05671228016298599287.png" alt="$i$"> th rows (each row represents a single pixel) of <img src="tutorial_main_eq05147331747641807187.png" alt="$A$"> and <img src="tutorial_main_eq07649107795707013777.png" alt="$Y$">, respectively.</p><p>Methods Reference:</p><div><ul><li>Spatiotemporal Deconvolution and Component Demixing</li><li>Estimating A, b</li><li>Ranking and removing components</li></ul></div><pre class="codeinput">im = reshape(im,d,T);
+[A,b,Cin] = update_spatial_components(im,Cin,fin,[Ain,bin],P,options);
+</pre><pre class="codeoutput">Updated spatial components 
+</pre><h2>Update temporal components<a name="33"></a></h2><p>The calcium signal is assumed to follow the dynamics of the follow AR model:</p><p><img src="tutorial_main_eq14082563468482922627.png" alt="$$c(t) = \sum_{j=1}^p\gamma_j c(t-j) + s(t)$$"></p><p>where <img src="tutorial_main_eq02574678489093433863.png" alt="$c(t)$"> is the calcium concentration at time <img src="tutorial_main_eq12656067504604335951.png" alt="$t$">, <img src="tutorial_main_eq02766854858497834218.png" alt="$s(t)$"> is the spiking activity at time <img src="tutorial_main_eq12656067504604335951.png" alt="$t$"> and <img src="tutorial_main_eq14444252741631191052.png" alt="$\gamma_j$"> for <img src="tutorial_main_eq07225361342133155126.png" alt="$j$"> in <img src="tutorial_main_eq08762952041598945291.png" alt="$\{1,...,k\}$"> are the coefficients to be estimated. For each component, these coefficients are estimated by solving</p><p>Methods Reference:</p><div><ul><li>Spatiotemporal Deconvolution and Component Demixing</li><li>Estimating C, d</li><li>Ranking and removing components</li></ul></div><pre class="codeinput">P.p = 0;    <span class="comment">% set AR temporarily to zero for speed</span>
+[C,f,P,S,imA] = update_temporal_components(im,A,b,Cin,fin,P,options);
+</pre><pre class="codeoutput">4 out of 50 components updated 
+10 out of 50 components updated 
+17 out of 50 components updated 
+24 out of 50 components updated 
+35 out of 50 components updated 
+50 out of 50 components updated 
+1 out of 50 components updated 
+3 out of 50 components updated 
+7 out of 50 components updated 
+13 out of 50 components updated 
+25 out of 50 components updated 
+35 out of 50 components updated 
+50 out of 50 components updated 
+</pre><h2>Merge components<a name="38"></a></h2><pre class="codeinput">[Am,Cm,K_m,merged_ROIs,Pm,Sm] = merge_components(im,A,b,C,f,P,S,options);
+</pre><h2>Repeat spatial and temporal updates<a name="39"></a></h2><p>After merging the components, reupdate the spatial and temporal components to account for merging.</p><pre class="codeinput">Pm.p = p;
+[A2,b2,Cm] = update_spatial_components(im,Cm,f,[Am,b],Pm,options);
+[C2,f2,P2,S2,imA2] = update_temporal_components(im,A2,b2,Cm,f,Pm,options);
+</pre><pre class="codeoutput">Updated spatial components 
+1 out of 50 components updated 
+6 out of 50 components updated 
+15 out of 50 components updated 
+23 out of 50 components updated 
+35 out of 50 components updated 
+50 out of 50 components updated 
+4 out of 50 components updated 
+8 out of 50 components updated 
+15 out of 50 components updated 
+24 out of 50 components updated 
+36 out of 50 components updated 
+50 out of 50 components updated 
+</pre><h2>Plot the results<a name="40"></a></h2><p>An optional feature is to reorder the ROIs based on the maximum temporal signal and size (default) or alternatively provide an ordering of your own.</p><pre class="codeinput">[A_or,C_or,S_or,P_or] = order_ROIs(A2,C2,S2,P2); <span class="comment">% order components</span>
+C_df = extract_DF_F(im,A_or,C_or,P_or,options); <span class="comment">% extract DF/F values (optional)</span>
+figure; plot_contours(A_or,Cn,options,1);
+figure;
+base = 0;
+<span class="keyword">for</span> i = 1:10
+    plot(C_df(i,:)+base);
+    base = base + max(C_df(i,:));
+    hold <span class="string">on</span>;
+<span class="keyword">end</span>; hold <span class="string">off</span>;
+title(<span class="string">'\Delta f/f of first 10 ROIs'</span>)
+</pre><img vspace="5" hspace="5" src="tutorial_main_02.png" alt=""> <img vspace="5" hspace="5" src="tutorial_main_03.png" alt=""> <h2>Bibliography<a name="41"></a></h2><div><ol><li>E. A. Pnevmatikakis, D. Soudry, Y. Gao, T. A. Machado, J. Merel, D. Pfau, T. Reardon, Y. Mu, C. Lacefield, W. Yang, M. Ahrens, R. Bruno, T. M. Jessell, D. S. Peterka, R. Yuste, and L. Paninski. Simultaneous denoising, deconvolution, and demixing of calcium imaging data. Neuron, 89(2):285?~@~S99, Jan 2016.</li><li>J. T. Vogelstein, A. M. Packer, T. A. Machado, T. Sippy, B. Babadi, R. Yuste, and L. Paninski. Fast nonnegative deconvolution for spike train inference from population calcium imaging. J Neurophysiol, 104(6):3691?~@~S704, Dec 2010.</li></ol></div><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2016a</a><br></p></div><!--
 ##### SOURCE BEGIN #####
 %% Simultaneous Denoising, Deconvolution and Demixing of Calcium Imaging Data
-% This algorithm does some stuff...
+% This tutorial is adapted from the demo script provided along with the
+% Calcium Source Extraction software package developed by Pnevmatikakis et
+% al. (available <https://github.com/epnev/ca_source_extraction here>).
+% More elaborate details and an analysis of algorithmic performance can be
+% found in [1]. 
 
-%% Calcium Data
-% Basic background on calcium data. Maybe have another tutorial with their
-% model assumptions. The video file of the sample data being analyzed is
-% given, but you can also fine it here:
+%% Calcium Imaging
+% In analyzing calcium imaging data, there exist three main challenges: (1)
+% segmentation of the spatial footprint of the region of interest (ROI);
+% (2) demixing of spatially overlapping cells; (3) recovery of neural
+% (spiking) activity from noisy measurements of calcium indicators. This
+% software addresses all three problems simultaneously while minimizing the
+% need to tune parameters. In general, it is anticipated that only the
+% number of cells and approximate size need be tuned between analyses. One
+% key advantage of this algorithm for ROI selection compared with manual
+% selection is the ability to identify and disentangle signals from
+% spatially overlapping cells. Moreover, the software features an option to
+% manually initialize regions where cells are presumed to exist. This
+% purpose of this tutorial is to give a brief and concise overview of the
+% different components of the analysis so that it will be easy to test and
+% adopt.
+% 
 %%
-% <https://drive.google.com/open?id=0B6YaPZeMxSERRI9GNjFKYk1xV0k demoVid.avi>
+% A video of the image file being analyzed throughout this tutorial can be
+% found here:
+%%
+% <https://drive.google.com/open?id=0B6YaPZeMxSERRl9GNjFKYk1xV0k demoMovie.avi>
 
 filename = 'demoMovie.tif';
-im = readTifStack(filename);
-z_project(im);
+im = double(readTifStack(filename)); % Note that the image must be a double
+im = im - min(im(:));
+Cn = correlation_image(im);
+
+%%
+% Try replacing filename with a path to a file of your own data.
 
 %% Parameters
-% Only a few of the parameters are discussed here. Most of these will
-% probably not change from one analysis to another, but you may want to
-% compare different things before settling on standard settings. The full
-% list of tunable options for each component of the algorithm can be found
-% in the documentation. 
+% One of the highlights of this software is that it requires minimal tuning
+% of parameters. Generally, only an estimate of the number of cells and the
+% approximate size of the cells needs to be provided. However, for the sake
+% of exploring a little deeper, a few additional parameters are discussed
+% below. Most of these will probably not change from one analysis to
+% another, but you may want to compare different settings before assigning
+% standard run parameters and analysis of different types of data may
+% require different options. The full list of tunable options for each
+% function can be found in the software documentation.
 %%
-% The parameters set in this example include
+% The following parameters are particularly sensitive, relevant or
+% interesting:
 %%
-% * |d1| and |d2|: these are inherent in the data set; they represent the
-% spatial dimensions of the data set.
-% * |search_method|: this parameter is used in the spatial update portion
-% of the algorithm. The options are 'dilate' or 'ellipse' and represent the
-% way that the algorithm searches for which pixels to include in the
-% spatial components. The 'dilate' option dilates the selection from the
-% previous iteration; the 'ellipse' option constructs an ellipse using the
-% center of mass and two principle components of the spatial component from
-% the previous iteration.
-% * |deconv_method|: indicates how to process raw fluorescence data from a
+% * d1 and d2: these are inherent in the data set; they represent the
+% spatial dimensions of the images.
+% * p: the order of the autoregressive model; a value of 1 here calculates
+% coefficients for only the rate of decay of the calcium signal - a value
+% of 2 also calculates the coefficients for the rate of growth. This
+% parameter is used in the preprocessing step (|preprocess_data|) and in
+% updating the temporal components (|update_temporal_components|).  
+% * deconv_method: indicates how to process raw fluorescence data from a
 % given region into its calcium signal. There are five options provided
 % with the code ('project', 'constrained_foopsi', 'MCEM_foopsi', 'MCMC',
 % and 'noise_constrained'). Any other method that takes as input the
 % averaged raw traces from each spatial component and returns the
-% deconvolved calcium activity can be added in to the the
+% deconvolved calcium activity can be easily added in to the the
 % |update_temporal_components| function by adding another case to the
 % switch case portion of the function. In general, 'constrained_foopsi' is
-% recommended. For details on how this method calculates the calcium
-% activity given the raw data, see the included tutorial.
-% * 
+% recommended. The algorithm from this method is described in Vogelstein,
+% 2010 [2].
+% * merge_thr: this parameter is used by the |merge_components| function.
+% Components with overlapping spatial footprints whose temporal components
+% have a correlation component greater than this value are merged into a
+% single component.
+% * tau: this parameter is used throughout the analysis and represents the
+% approximate size of the 
 %%
 % Inherent
-[d1,d2,T] = size(im);                                % dimensions of dataset
-d = d1*d2;                                          % total number of pixels
+
+[d1,d2,T] = size(im);
+d = d1*d2; % total number of pixels
 
 %%
 % User defined
-max_cells = 50;                                           % number of components to be found
-p = 2;                                            % order of autoregressive system (p = 0 no dynamics, p=1 just decay, p = 2, both rise and decay)
+
+max_cells = 50; 
+tau = 4;
+p = 2; 
 
 options = CNMFSetParms(...                      
-    'd1',d1,'d2',d2,...                         % dimensions of datasets
-    'search_method','dilate','dist',8,...       % search locations when updating spatial components
-    'deconv_method','constrained_foopsi',...    % activity deconvolution method
-    'temporal_iter',2,...                       % number of block-coordinate descent steps 
-    'fudge_factor',.98,...                      % bias correction for AR coefficients
-    'merge_thr',.85,...                         % merging threshold
-    'gSig',4,...                                % std of gaussian kernel (size of neuron)
-    'maxthr',.05...                             % threshold of max value below which values are discarded (default: 0.1)
+    'd1',d1,'d2',d2,... 
+    'deconv_method','constrained_foopsi',... 
+    'merge_thr',.85,... 
+    'gSig',tau... 
     );
 
 %% Preprocessing
-% Preprocessing includes fixing missing pixels, estimating model
-% parameters. Explain autoregressive model (again with little detail and if
-% there is time write up something more detailed)
-% Sections:
-% Autoregressive Model for Calcium Dynamics
-% Estimation of Model Parameters
-
-[P,im] = preprocess_data(im,p);
-z_project(im);
-
+% Preprocessing includes fixing missing pixels and estimating the noise for
+% each pixel (at this point, p is passed only for later use unless global
+% AR coefficients are to be assigned).
 %%
-% These are the standard deviation projections - they don't look that
-% different, but maybe we can find some way to show the differences. I want
-% to see if we can get .gif files in here.
+% The noise is estimated using the power spectral density of the
+% fluorescence measurements at each pixel under the assumption high
+% frequency components are noise. Therefore, an average of the amplitude of
+% high frequency components should be a reasonable approximation of the
+% noise variance. 
+%%
+% The outputs here are $P$, a structure variable which stores, among other
+% things, the noise variance for each pixel, and $im$, an updated version
+% of the raw image with missing pixels fixed.
+%%
+% Methods Reference:
+%%
+% * Estimation of Model Parameters
+
+[P, im] = preprocess_data(im,p);
 
 %% Initialize spatial components
-% Sections:
+% The default way of initializing the spatial components is with a greedy
+% algorithm which assigns cell centers based on the locations of the
+% brightest pixels (those that explain the greatest variance in the
+% filtered image) after application of a Gaussian filter. The spatial and
+% temporal components of the region surrounding the center are calculated
+% and subtracted from the image data and the process is repeated until the
+% number of neurons specified by |max_cells| is found.
+%%
+% An alternative way of initializing spatial components is to solve a
+% sparse nonnegative matrix factorization problem (group lasso
+% initialization). The details of this method are not given here, but it is
+% important to note that this method of initialization is recommended for
+% densely packed cells or somatic data. To use this initialization method,
+% when setting the options, add the line 
+%%
+% |'init_method','sparse_NMF',...|
+%%
+% to the list of inputs given to CNMFSetParms.
+%%
+% The outputs of this function are the spatial footprints (Ain), the
+% calcium concentration signals (Cin), the spatial and temporal backgrounds
+% (bin and fin, respectively) and the locations of the centers.
+%% 
+% Methods Reference:
 %%
 % * Greedy Initialization for Somatic Imaging Data
 % * Group Lasso Initialization for Somatic Imaging Data
 
-%% HALS
+[Ain,Cin,bin,fin,center] = ...
+    initialize_components(im,max_cells,tau,options,P);
+
+%% 
+% Let's take a look at the cell centers that we just found. 
+figure; imagesc(Cn);
+axis equal; axis tight; hold all;
+scatter(center(:,2),center(:,1),'mo');
+title('Center of ROIs found from initialization algorithm');
 
 %% Manually refine spatial components
+% You may want to add or subtract pixels to the list of cell centers. The
+% following function provides a nice GUI to do just this.
+% By changing the |refine_components| flag, you can decide whether or not
+% run this portion of the code.
 
+refine_components = false;  % set this to true to change the cell centers
+if refine_components
+    [Ain,Cin,center] = manually_refine_components(...
+        im,Ain,Cin,center,Cn,tau,options);
+end
 %% Update spatial components
-% Sections:
+% Both the spatial and temporal updates rely on the solution of constrained
+% nonnegative matrix factorization (CNMF) problems. The idea here is that
+% the raw signal can be modeled as
+%%
+% $$Y(t) = F(t) + \overline\epsilon$$
+%%
+% where $Y$ is the raw data (at time $t$), $F$ is the fluorescence
+% signal and $\epsilon$ is Gaussian noise. Breaking this down even further,
+% we have
+%%
+% $$F(t) = \sum_{i=1}^k\overline a_ic_i(t) + B(t)$$
+%%
+% or $F = AC + B$. So now, when we look to update any of the parameters in
+% these equations ($A$ or $C$, for example) we want the solutions to obey
+% these equations. One other important additional constraint is that $A$
+% and $b$ should both be nonnegative. Finally, in order to promote more
+% compact spatial footprints, $A$ should be sparse. All of these conditions
+% yield the following CNMF problem: we wish to update $A$ such that $||A||_1$ 
+% is minimized subject to the following constraints:
+%%
+% $$A, \overline{b} > 0$$
+% $$|| Y_i - A_iC^{(k-1)} - \overline{b}_i\overline{f}^{(k-1)T}|| <=
+% \sigma_i\sqrt(T)$$
+%%
+% where $A_i$ and $Y_i$ represent the $i$ th rows (each row represents a
+% single pixel) of $A$ and $Y$, respectively. 
+%%
+% Methods Reference:
 %%
 % * Spatiotemporal Deconvolution and Component Demixing
 % * Estimating A, b
 % * Ranking and removing components
 
+im = reshape(im,d,T);
+[A,b,Cin] = update_spatial_components(im,Cin,fin,[Ain,bin],P,options);
 %% Update temporal components
-% Sections:
+% The calcium signal is assumed to follow the dynamics of the follow AR
+% model:
+%%
+% $$c(t) = \sum_{j=1}^p\gamma_j c(t-j) + s(t)$$
+%%
+% where $c(t)$ is the calcium concentration at time $t$, $s(t)$ is the
+% spiking activity at time $t$ and $\gamma_j$ for $j$ in $\{1,...,k\}$ are
+% the coefficients to be estimated. For each component, these coefficients
+% are estimated by solving 
+%%
+% Methods Reference:
 %%
 % * Spatiotemporal Deconvolution and Component Demixing
 % * Estimating C, d
 % * Ranking and removing components
 
-%% Merge components
+P.p = 0;    % set AR temporarily to zero for speed
+[C,f,P,S,imA] = update_temporal_components(im,A,b,Cin,fin,P,options);
 
+%% Merge components
+[Am,Cm,K_m,merged_ROIs,Pm,Sm] = merge_components(im,A,b,C,f,P,S,options);
+
+%% Repeat spatial and temporal updates
+% After merging the components, reupdate the spatial and temporal
+% components to account for merging.
+Pm.p = p;    
+[A2,b2,Cm] = update_spatial_components(im,Cm,f,[Am,b],Pm,options);
+[C2,f2,P2,S2,imA2] = update_temporal_components(im,A2,b2,Cm,f,Pm,options);
+
+%% Plot the results
+% An optional feature is to reorder the ROIs based on the maximum temporal
+% signal and size (default) or alternatively provide an ordering of your
+% own.
+[A_or,C_or,S_or,P_or] = order_ROIs(A2,C2,S2,P2); % order components
+C_df = extract_DF_F(im,A_or,C_or,P_or,options); % extract DF/F values (optional)
+figure; plot_contours(A_or,Cn,options,1);
+figure; 
+base = 0; 
+for i = 1:10
+    plot(C_df(i,:)+base); 
+    base = base + max(C_df(i,:));
+    hold on;
+end; hold off;
+title('\Delta f/f of first 10 ROIs')
+
+%% Bibliography
 %%
-% This is basically the demo script, but we can add in more explanation and
-% some demonstrative plots. It would also be cool to give some general
-% demonstrations of the methods maybe. Something where we show what the
-% deconvolution does on a single trace so that it's easy to understand... I
-% dunno. Obviously we won't have time to show details on a lot of stuff,
-% but if there is something that we really like, we could give more about
-% it in separate (linked) tutorial pages. 
+% 
+% # E. A. Pnevmatikakis, D. Soudry, Y. Gao, T. A. Machado, J. Merel, D.
+% Pfau, T. Reardon, Y. Mu, C. Lacefield, W. Yang, M. Ahrens, R. Bruno, T.
+% M. Jessell, D. S. Peterka, R. Yuste, and L. Paninski. Simultaneous
+% denoising, deconvolution, and demixing of calcium imaging data. Neuron,
+% 89(2):285?~@~S99, Jan 2016.
+% # J. T. Vogelstein, A. M. Packer, T. A. Machado, T. Sippy, B. Babadi, R.
+% Yuste, and L. Paninski. Fast nonnegative deconvolution for spike train
+% inference from population calcium imaging. J Neurophysiol,
+% 104(6):3691?~@~S704, Dec 2010.
+
+
+
 ##### SOURCE END #####
 --></body></html>

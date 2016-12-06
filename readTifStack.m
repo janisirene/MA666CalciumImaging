@@ -2,6 +2,7 @@ function [im] = readTifStack(filename,fstart,fend)
 % reads in a .tif stack. Optional parameters fstart and fend set the
 % starting and ending frames to read
 
+warning('off');
 if ~exist('fstart','var') || isempty(fstart)
     fstart = 1;
 end

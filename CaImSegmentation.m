@@ -107,7 +107,7 @@ if ~exist('options','var') || isempty(options)
         'tsub', 1,...                            % temporal downsampling factor (default: 1)    
         'fudge_factor',0.98,...                     % bias correction for AR coefficients
         'merge_thr',merge_thr,...                    % merging threshold
-        'maxthr',0.1,...                           % threshold of max value below which values are discarded (default: 0.1)
+        'maxthr',0,...                           % threshold of max value below which values are discarded (default: 0.1)
         'medw',[3,3],...                % size of median filter (default: [3,3])
         'save_memory', savemem,...      % process data sequentially to save memory (default: 0)
         'gSig',tau...
