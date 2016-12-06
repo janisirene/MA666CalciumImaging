@@ -66,7 +66,7 @@ table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px soli
 
 
 
-  </style></head><body><div class="content"><h1>Autoregressive Model for Calcium Dynamics</h1><!--introduction--><p>An autoregressive process operates under the assumption that past states affect current states. An autoregressive process of order 1 means that each state is affected by the state immediately preceding it, order 2 means that each state is affected by the two states immediately prior, etc. An autoregressive process of order p (AR(p)) is defined as follows:</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#3">Generate spikes from exponential distribution</a></li><li><a href="#4">Applying the AR model to Action Potentials</a></li></ul></div><p><img src="ARmodel_eq06790537459012590902.png" alt="$$X_t = c + \sum_{i=1}^p\gamma_iX_{t-i} + \epsilon_t$$"></p><p>where <img src="ARmodel_eq08422257486649890878.png" alt="$c$"> is a constant, <img src="ARmodel_eq10190599912419501465.png" alt="$\gamma_i$"> are the coefficients of the process and <img src="ARmodel_eq09284369226989828555.png" alt="$\epsilon_t$"> is white noise. In this tutorial, we will look at an AR process that incorporates spike data to generate a model of calcium dynamics. The goal is to get an intuitive understanding of how this particular calcium model works in order to understand its role in calcium data analysis.</p><h2>Generate spikes from exponential distribution<a name="3"></a></h2><pre class="codeinput">rate = 1000; <span class="comment">% spike rate (Hz)</span>
+  </style></head><body><div class="content"><h1>Autoregressive Model for Calcium Dynamics</h1><!--introduction--><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#4">Generate spikes from exponential distribution</a></li><li><a href="#5">Applying the AR model to Action Potentials</a></li></ul></div><p>An autoregressive process operates under the assumption that past states affect current states. An autoregressive process of order 1 means that each state is affected by the state immediately preceding it, order 2 means that each state is affected by the two states immediately prior, etc. An autoregressive process of order p (AR(p)) is defined as follows:</p><p><img src="ARmodel_eq06790537459012590902.png" alt="$$X_t = c + \sum_{i=1}^p\gamma_iX_{t-i} + \epsilon_t$$"></p><p>where <img src="ARmodel_eq08422257486649890878.png" alt="$c$"> is a constant, <img src="ARmodel_eq10190599912419501465.png" alt="$\gamma_i$"> are the coefficients of the process and <img src="ARmodel_eq09284369226989828555.png" alt="$\epsilon_t$"> is white noise. In this tutorial, we will look at an AR process that incorporates spike data to generate a model of calcium dynamics. The goal is to get an intuitive understanding of how this particular calcium model works in order to understand its role in calcium data analysis.</p><h2>Generate spikes from exponential distribution<a name="4"></a></h2><pre class="codeinput">rate = 1000; <span class="comment">% spike rate (Hz)</span>
 dur = .01; <span class="comment">% duration of trial (s)</span>
 dt = 0.0001; <span class="comment">% time step (s)</span>
 T = (0:dt:dur);
@@ -79,7 +79,7 @@ spikes = zeros(dur/dt+1,1);
         spikes(t) = 1;
     <span class="keyword">end</span>
 <span class="keyword">end</span>
-</pre><h2>Applying the AR model to Action Potentials<a name="4"></a></h2><p>Before implementing the calculation, consider what each of the parameters in the model does. Look again at the AR model.</p><p><img src="ARmodel_eq06263262507588699212.png" alt="$c(t) = \sum_{j=1}^p\gamma_jc(t-j)+s(t)$"></p><p>Consider the following for <img src="ARmodel_eq12081968486337205601.png" alt="$p=1$">:</p><div><ul><li>What does the parameter <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> represent?</li><li>How do changes to <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> affect the calcium signal?</li><li>What are reasonable values for this parameter?</li></ul></div><p>Look at what happens when we vary <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$">:</p><pre class="codeinput">p = 1;
+</pre><h2>Applying the AR model to Action Potentials<a name="5"></a></h2><p>Before implementing the calculation, consider what each of the parameters in the model does. Look again at the AR model.</p><p><img src="ARmodel_eq06263262507588699212.png" alt="$c(t) = \sum_{j=1}^p\gamma_jc(t-j)+s(t)$"></p><p>Consider the following for <img src="ARmodel_eq12081968486337205601.png" alt="$p=1$">:</p><div><ul><li>What does the parameter <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> represent?</li><li>How do changes to <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> affect the calcium signal?</li><li>What are reasonable values for this parameter?</li></ul></div><p>Look at what happens when we vary <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$">:</p><pre class="codeinput">p = 1;
 Gamma = (.5:.05:.99);
 calcium = zeros(length(spikes),numel(Gamma));
 <span class="keyword">for</span> g = 1:numel(Gamma)
@@ -98,17 +98,16 @@ title(<span class="string">'Comparison of traces with high and low \gamma'</span
 </pre><img vspace="5" hspace="5" src="ARmodel_02.png" alt=""> <p>Let's do one more comparison: are the peaks in the same place?</p><pre class="codeinput">[~,peaklocs] = arrayfun(@(i) findpeaks(calcium(:,i)),[1;g],<span class="keyword">...</span>
     <span class="string">'uniformoutput'</span>,false);
 disp(cat(2,peaklocs{:}))
-</pre><pre class="codeoutput">     8     8
-    11    11
-    14    14
-    27    27
-    29    29
-    37    37
-    47    47
-    77    77
-    83    83
-    91    91
-   100   100
+</pre><pre class="codeoutput">     2     2
+    21    21
+    40    40
+    42    42
+    54    54
+    63    63
+    70    70
+    82    82
+    86    86
+    99    99
 
 </pre><p>Great! Looks like yes! Now, let's look at what happens when <img src="ARmodel_eq03564621074447017616.png" alt="$p=2$">. We will start by holding <img src="ARmodel_eq15212781520413577972.png" alt="$\gamma_1$"> constant and varying <img src="ARmodel_eq02298748245043383986.png" alt="$\gamma_2$">.</p><pre class="codeinput">p = 2;
 gamma1 = 0.5;
@@ -149,6 +148,7 @@ title(<span class="string">'Comparison of traces with high and low \gamma_1'</sp
 </pre><img vspace="5" hspace="5" src="ARmodel_05.png" alt=""> <img vspace="5" hspace="5" src="ARmodel_06.png" alt=""> <p>Look at what you see and think about how different values of the AR coefficients change the behavior of the calcium signal.</p><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2016a</a><br></p></div><!--
 ##### SOURCE BEGIN #####
 %% Autoregressive Model for Calcium Dynamics
+%%
 % An autoregressive process operates under the assumption that past
 % states
 % affect current states. An autoregressive process of order 1 means that

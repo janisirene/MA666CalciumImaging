@@ -1,4 +1,5 @@
 %% Autoregressive Model for Calcium Dynamics
+%%
 % An autoregressive process operates under the assumption that past
 % states
 % affect current states. An autoregressive process of order 1 means that
