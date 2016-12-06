@@ -57,17 +57,16 @@ title('Comparison of traces with high and low \gamma')
 disp(cat(2,peaklocs{:}))
 
 %%
-% Great! Looks like yes! Now, let's look at what happens when $p=2$.
+% Great! Looks like yes! Now, let's look at what happens when $p=2$. We
+% will start by holding $\gamma_1$ constant and varying $\gamma_2$.
 p = 2;
 gamma1 = 0.5;
-Gamma = (0:.05:.49);
+Gamma = -(0:.05:.5);
 calcium = zeros(length(spikes),numel(Gamma));
 for g = 1:numel(Gamma)
     gamma = [gamma1; Gamma(g)];
     for t = 3:length(spikes)
         calcium(t,g) = gamma(1)*calcium(t-1,g)+gamma(2)*calcium(t-2,g)+spikes(t);
-%         calcium(t,g) = sum(gamma.*calcium(t-(1:p),g))+spikes(t);
-%         calcium(t,g) = gamma*calcium(t-p,g)+spikes(t);
     end
     figure(3); plot((0:dt:dur),calcium(:,g)+2*g); hold on
 end
@@ -77,5 +76,44 @@ legend(num2str(Gamma'))
 
 %%
 % Look at the values of |Gamma|. Why do you think those values were chosen?
-% What happens if you let |Gamma| go to 0.7 for example? Change the
-% parameters and see what happens.
+% Change the parameters and see what happens. Try the following:
+%% 
+% * Gamma = (0:.05:.5);
+% * Gamma = (.2:.05:.7);
+% * Gamma = -(1.2:.05:1.7);
+%%
+% See if you can explain the behavior that you see in each plot.
+%%
+% Can you tell what's happening this time? Let's do the same as before and
+% overlay the plots of the calcium signal with the highest and
+% lowest values of $\gamma$.
+figure(4); plot((0:dt:dur),calcium(:,[1,g]))
+legend(num2str(Gamma([1,g])'))
+title('Comparison of traces with high and low \gamma_2')
+
+%% 
+% There are some pretty obvious differences now. Okay, now that we have
+% seen that, let's see what happens when we hold $\gamma_2$ constant and
+% vary $\gamma_1$.
+p = 2;
+gamma2 = 0.5;
+Gamma = (0:.05:.49);
+calcium = zeros(length(spikes),numel(Gamma));
+for g = 1:numel(Gamma)
+    gamma = [Gamma(g); gamma2];
+    for t = 3:length(spikes)
+        calcium(t,g) = gamma(1)*calcium(t-1,g)+gamma(2)*calcium(t-2,g)+spikes(t);
+    end
+    figure(5); plot((0:dt:dur),calcium(:,g)+2*g); hold on
+end
+title('Calcium concentration for \gamma_2=0.5 with varying \gamma_1')
+hold off;
+legend(num2str(Gamma'))
+
+% Compare highest and lowest values of gamma(2)
+figure(6); plot((0:dt:dur),calcium(:,[1,g]))
+legend(num2str(Gamma([1,g])'))
+title('Comparison of traces with high and low \gamma_1')
+%%
+% Look at what you see and think about how different values of the AR
+% coefficients change the behavior of the calcium signal. 
