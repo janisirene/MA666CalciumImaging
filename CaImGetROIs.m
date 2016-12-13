@@ -23,6 +23,7 @@ function [tempBinaryImage, clusterData, detectedROI] = CaImGetROIs(filename,estN
 %         clusterData - results of hierarchical clustering
 %         detectedROI - cell of structures defining ROI for input cutoff
 %         values
+%         figures of intermediate steps
 % 
 %Created: 2016/11/08
 % Byron Price
@@ -54,7 +55,7 @@ end
 estNeuronRadius = round(estNeuronRadius);
 
 %% read input
-if ischar(filename) % data input is .avi
+if ischar(filename)
     [~, ~, ext] = fileparts(filename);
     switch ext
         case '.avi'
@@ -78,10 +79,10 @@ else % data input is already 3d array
     numFrames = size(fullVideo, 3);
 end
 
-%% denoise with wiener filter
 width = size(fullVideo,1);
 height = size(fullVideo,2);
 
+%% denoise with wiener filter
 fltVideo = zeros(size(fullVideo));
 for ii=1:numFrames
     temp = fullVideo(:,:,ii);
@@ -154,6 +155,7 @@ usePixels = find(tempBinaryImage);
 % following lines get the indices of signal-pixel pairs and their
 % corresponding indices in the original matrix.
 idx = find(tril(true(length(usePixels)), -1));
+% row and columns of lower triangular matrix
 [tempr, tempc] = ind2sub([length(usePixels), length(usePixels)], idx);
 indexArray = [tempr, tempc];
 usePixelArray = usePixels(indexArray);
@@ -191,7 +193,7 @@ dissimilarity = 1 - xcorrArray;
 % Run linkage - this step repeatedly pairs two objects with the smallest
 % dissimilarity values to form hierarchical clusters. The 'complete' option
 % defines the dissimilarity between two clusters to be the maximum
-% dissimilarity between any two members of the cluster.
+% dissimilarity between any two members of the clusters.
 Z = linkage(dissimilarity', 'complete');
 figure(); dendrogram(Z, 0, 'colorthreshold', .5); % threshold for plotting only
 
