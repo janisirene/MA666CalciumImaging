@@ -24,6 +24,7 @@ if ~exist(svDir, 'dir')
     mkdir(svDir); 
 end
 
+%% get run parameters from input list
 fid = fopen(inputList, 'r');
 for i = 1:tidx
     trialIdx = fscanf(fid, '%i', 1);
@@ -33,6 +34,7 @@ for i = 1:tidx
 end
 fclose(fid);
 
+%% set parameters, run test, save results
 params.nROI = nROI;
 params.snr = snr;
 params.noisePW = noisePW;
