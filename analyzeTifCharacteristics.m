@@ -1,4 +1,8 @@
 % Janis's script to analyze statistics of actual calcium image data
+% this is written more modularly than sequentially so it may not run all
+% the way through. But different cells explore different things like the
+% spectral properties of calcium imaging data or what a spectrally whitened
+% video would look like
 
 addpath(genpath('ca_source_extraction-master'));
 
@@ -31,12 +35,26 @@ Ycut = Y(250:350, 150:250, :);
 Ycut = Ycut - min(Ycut(:));
 Ycut = Ycut / max(Ycut(:));
 tic; 
-[finalBinaryImage, clusterData, detectedROIs] = ...
-    CaImGetROIs(Ycut, 10, 100);
+% [finalBinaryImage, clusterData, detectedROIs] = ...
+%     CaImGetROIs(Ycut, 10, .9);
+[detectedROIs, finalBinaryImage] = kmeans_ForJanis(Ycut,10,5);
 toc;
+%%
+figure(312); clf; hold on;
+imagesc(var(Ycut, [], 3));
+axis image;
+for i = 1:length(detectedROIs{1})
+    sIdx = detectedROIs{1}(i).indices;
+        [r, c] = ind2sub([size(Ycut, 1), size(Ycut, 2)], sIdx);
+        if ~isempty(r)
+            K = boundary(c, r);
+            plot(c(K), r(K), 'k', 'linewidth', 2);
+        end
+end
+set(gca, 'YDir', 'reverse');
 
 %% play Y as a movie
-m = Ycut;
+m = Y;
 
 figure(100); clf;
 h = imagesc(m(:, :, 1));
