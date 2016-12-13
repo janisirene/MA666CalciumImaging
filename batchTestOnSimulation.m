@@ -1,19 +1,26 @@
 % batchTest script
-% aggregate data from individual test trials
+% aggregate data from individual test trials output by sccRunTests.m (for
+% example on the shared computing cluster)
+% plots ROC curve, ROI hit rate, and ratio of # detected / # true ROI
+% author: Janis Intoy
+% date: November 29, 2016
 clear all;
 
-ptToData = 'results_1858698_hierarchical';
+% path to output mat files of sccRunTests.m
+ptToData = 'results_1858698_hierarchical'; 
 dr = dir(fullfile(ptToData, '*.mat'));
 
+% parameters of the test run
 snrs = [3, 5, 10, 30, 50];
 nROIs = 1:7;
 noisePW = [0, 2];
 
-cutoff = .1:.1:1;
+cutoff = .1:.1:1; % cutoffs for hierarchical clustering
+%cutoff = [1e-2,1e-1,1e0,1e1,1e2]; % tolerances for kmeans algorithm
 maxTrials = 50;
 
 
-%% 
+%% open all files and reorganize data 
 nTrials = zeros(length(nROIs), length(snrs), length(noisePW), length(cutoff));
 
 hitSignal = nan(length(nROIs), length(snrs), length(noisePW), length(cutoff), maxTrials);
@@ -47,6 +54,7 @@ for i = 1:length(dr)
 end
 
 %% pixels that get through clustering
+% get hit and false alarm rates to make a ROC curve
 hits = nan(length(cutoff), length(snrs), length(noisePW));
 fas = nan(length(cutoff), length(snrs), length(noisePW));
 for s = 1:length(snrs)
@@ -67,7 +75,8 @@ end
 
 fh = 0;
 
-
+% plot the ROC curve for detecting signal pixels that get through
+% clustering
 for p = 1:size(hits, 3)
     fh = fh + 1;
     figure(fh); clf;
@@ -84,6 +93,8 @@ for p = 1:size(hits, 3)
     
     lg = legend(cellfun(@(x) ['SNR=', num2str(x)], num2cell(snrs), 'UniformOutput', false),...
         'Location', 'southeast', 'FontSize', 14, 'FontWeight', 'bold');
+    xlim([0, .3]);
+    ylim([0, 1]);
 end
 
 %% number detected ROI with matching true ROI
@@ -113,6 +124,8 @@ for p = 1:size(hits, 3)
     
     lg = legend(cellfun(@(x) ['SNR=', num2str(x)], num2cell(snrs), 'UniformOutput', false),...
         'Location', 'southeast', 'FontSize', 14, 'FontWeight', 'bold');
+    ylim([0, 1.4]);
+    lineThrough(1, 'k', gca, '--');
 end
 
 %% hit rate on ROIs
@@ -139,7 +152,7 @@ for p = 1:size(hits, 3)
         plot(cutoff, squeeze(hitROI2(:, s, p)), '.-', 'markersize', 20);
     end
     xlabel('cutoff', 'FontSize', 16, 'FontWeight', 'bold');
-    ylabel('ROI hite rate', 'FontSize', 16, 'FontWeight', 'bold');
+    ylabel('ROI hit rate', 'FontSize', 16, 'FontWeight', 'bold');
     
     lg = legend(cellfun(@(x) ['SNR=', num2str(x)], num2cell(snrs), 'UniformOutput', false),...
         'Location', 'southeast', 'FontSize', 14, 'FontWeight', 'bold');
