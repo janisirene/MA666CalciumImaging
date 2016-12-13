@@ -1,6 +1,7 @@
 #!/bin/csh
 # this is a qsub companion script for running Array Job
 # Usage examples:
+# module load matlab/2016a
 # scc1$ qsub -t 1:3500 -tc 100 ./run_matlabTest.sh
 # Specify qsub options
 # Send email to SCC userID when job finished or aborted
